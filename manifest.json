@@ -4,6 +4,11 @@
   "short_name": "PomodoLearn",
   "version": "0.1.0",
   "description": "Pomodoro timer with flashcard review after each session.",
+  "icons": {
+    "16": "icon16.png",
+    "48": "icon48.png",
+    "128": "icon128.png"
+  },
   "action": {},
   "side_panel": {
     "default_path": "sidepanel.html"

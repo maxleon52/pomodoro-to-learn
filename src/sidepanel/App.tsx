@@ -1,48 +1,178 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import './styles/global.css'
 import TimerScreen from './components/timer-screen'
+import type { TimerState, WorkerMessage } from '../shared/types'
 
-// Duração padrão de uma sessão Pomodoro: 25 minutos em segundos.
-// Futuramente este valor virá do chrome.storage.local (configurável pelo utilizador).
-const DEFAULT_TIME = 25 * 60
+// Duração padrão de uma sessão: 25 minutos em segundos
+const DEFAULT_DURATION = 25 * 60
 
-// App é o componente raiz do side panel.
-// Responsabilidade atual: gerir o estado local do timer e decidir qual tela mostrar.
-// Quando o service worker estiver implementado, o estado virá de lá via chrome.runtime.sendMessage.
+// Categorias de estudo disponíveis — futuramente virão do chrome.storage.local
+const CATEGORIES = ['Inglês', 'Programação', 'Entrevistas']
+
+// Envia uma mensagem ao service worker e aguarda a resposta com o estado actualizado
+function sendToWorker(msg: WorkerMessage): Promise<TimerState> {
+  return chrome.runtime.sendMessage(msg)
+}
+
+// Calcula os segundos restantes a partir do estado guardado:
+// - Se running: deriva do endTime em tempo real
+// - Se pausado: usa o timeLeft guardado no storage
+function calcTimeLeft(state: TimerState): number {
+  if (state.running && state.endTime) {
+    return Math.max(0, Math.round((state.endTime - Date.now()) / 1000))
+  }
+  return state.timeLeft
+}
+
+// Converte a fase interna para o texto visível na UI
+function phaseLabel(state: TimerState): string {
+  if (state.phase === 'focusing') return 'Foco'
+  if (state.phase === 'quiz_pending') return 'Concluído'
+  return 'Pronto'
+}
+
 export default function App() {
-  // timeLeft: segundos restantes na sessão atual
-  const [timeLeft, setTimeLeft] = useState(DEFAULT_TIME)
+  // workerState: estado autoritativo vindo do service worker / storage
+  const [workerState, setWorkerState] = useState<TimerState>({
+    phase: 'idle',
+    endTime: null,
+    timeLeft: DEFAULT_DURATION,
+    running: false,
+  })
 
-  // isRunning: controla se o timer está a contar ou pausado
-  const [isRunning, setIsRunning] = useState(false)
+  // timeLeft: segundos exibidos no ecrã — actualizado pelo intervalo abaixo
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_DURATION)
 
-  // Alterna entre iniciar e pausar o timer.
-  // Por agora apenas troca o estado visual — a contagem real virá do service worker.
-  function handlePlay() {
-    setIsRunning((v) => !v)
+  // Referência ao intervalo de countdown para poder limpá-lo correctamente
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Índice da categoria de estudo actualmente seleccionada
+  const [categoryIndex, setCategoryIndex] = useState(0)
+
+  // Quando não é null, guarda o índice pendente e mostra o diálogo de confirmação
+  const [pendingCategory, setPendingCategory] = useState<number | null>(null)
+
+  // Ao montar o side panel: pede o estado actual ao worker para sincronizar a UI
+  // (o painel pode ter sido fechado e reaberto com o timer a correr)
+  useEffect(() => {
+    sendToWorker({ type: 'GET_STATE' }).then((state) => {
+      setWorkerState(state)
+      setTimeLeft(calcTimeLeft(state))
+    })
+  }, [])
+
+  // Ouve mudanças no storage — reagindo a eventos do worker (ex: alarme disparou)
+  // Isto permite que a UI actualize mesmo quando a mensagem vem do alarm handler
+  useEffect(() => {
+    function onStorageChange(
+      changes: Record<string, chrome.storage.StorageChange>
+    ) {
+      if (changes.timerState) {
+        const state = changes.timerState.newValue as TimerState
+        setWorkerState(state)
+        setTimeLeft(calcTimeLeft(state))
+      }
+    }
+    chrome.storage.onChanged.addListener(onStorageChange)
+    return () => chrome.storage.onChanged.removeListener(onStorageChange)
+  }, [])
+
+  // Countdown local: quando o timer está a correr, recalcula timeLeft cada segundo
+  // Não depende do worker para cada tick — deriva directamente do endTime guardado
+  useEffect(() => {
+    if (workerState.running && workerState.endTime) {
+      intervalRef.current = setInterval(() => {
+        const left = Math.max(
+          0,
+          Math.round((workerState.endTime! - Date.now()) / 1000)
+        )
+        setTimeLeft(left)
+      }, 1000)
+    } else {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current)
+    }
+  }, [workerState.running, workerState.endTime])
+
+  // Play/Pause: comportamento depende da fase actual
+  async function handlePlay() {
+    let state: TimerState
+    if (workerState.phase === 'idle') {
+      // Primeira vez — inicia com a duração padrão
+      state = await sendToWorker({ type: 'START', duration: DEFAULT_DURATION })
+    } else if (workerState.running) {
+      state = await sendToWorker({ type: 'PAUSE' })
+    } else {
+      // Estava pausado — retoma de onde parou
+      state = await sendToWorker({ type: 'RESUME' })
+    }
+    setWorkerState(state)
+    setTimeLeft(calcTimeLeft(state))
   }
 
-  // Reinicia a sessão para o tempo total e para o timer.
-  function handleSkipBack() {
-    setTimeLeft(DEFAULT_TIME)
-    setIsRunning(false)
+  // Reinicia a sessão completamente
+  async function handleReset() {
+    const state = await sendToWorker({ type: 'RESET' })
+    setWorkerState(state)
+    setTimeLeft(DEFAULT_DURATION)
   }
 
-  // Salta para o fim da sessão (útil para testar o fluxo de quiz sem esperar).
-  function handleSkipForward() {
+  // Força o fim da sessão — activa quiz_pending imediatamente
+  async function handleFinish() {
+    const state = await sendToWorker({ type: 'SKIP' })
+    setWorkerState(state)
     setTimeLeft(0)
-    setIsRunning(false)
+  }
+
+  // Navega para a categoria anterior ou seguinte no array circular.
+  // Se o timer estiver a correr, guarda o índice pendente e exibe o diálogo de confirmação.
+  function switchCategory(next: number) {
+    if (workerState.running) {
+      setPendingCategory(next)
+    } else {
+      setCategoryIndex(next)
+    }
+  }
+
+  function handlePrevCategory() {
+    switchCategory((categoryIndex - 1 + CATEGORIES.length) % CATEGORIES.length)
+  }
+
+  function handleNextCategory() {
+    switchCategory((categoryIndex + 1) % CATEGORIES.length)
+  }
+
+  // Utilizador confirmou a troca — reinicia o timer e muda de categoria
+  async function handleConfirmSwitch() {
+    if (pendingCategory === null) return
+    await handleReset()
+    setCategoryIndex(pendingCategory)
+    setPendingCategory(null)
+  }
+
+  // Utilizador cancelou — descarta a mudança pendente
+  function handleCancelSwitch() {
+    setPendingCategory(null)
   }
 
   return (
     <TimerScreen
       timeLeft={timeLeft}
-      totalTime={DEFAULT_TIME}
-      isRunning={isRunning}
-      phase="Foco"
+      totalTime={DEFAULT_DURATION}
+      isRunning={workerState.running}
+      phase={phaseLabel(workerState)}
+      hasStarted={workerState.phase !== 'idle'}
+      category={CATEGORIES[categoryIndex]}
+      showConfirm={pendingCategory !== null}
       onPlay={handlePlay}
-      onSkipBack={handleSkipBack}
-      onSkipForward={handleSkipForward}
+      onReset={handleReset}
+      onFinish={handleFinish}
+      onPrevCategory={handlePrevCategory}
+      onNextCategory={handleNextCategory}
+      onConfirmSwitch={handleConfirmSwitch}
+      onCancelSwitch={handleCancelSwitch}
     />
   )
 }

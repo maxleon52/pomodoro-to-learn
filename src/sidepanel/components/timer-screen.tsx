@@ -1,4 +1,4 @@
-import { Flame, Settings2, SkipBack, Play, Pause, SkipForward, Timer, Zap } from 'lucide-react'
+import { Flame, Settings2, ChevronLeft, ChevronRight, Play, Pause, Zap, RotateCcw, CheckCircle } from 'lucide-react'
 import './timer-screen.css'
 
 // Raio do círculo de progresso em pixels.
@@ -11,16 +11,23 @@ const RADIUS = 111
 // Com offset = 0, o arco está completo. Com offset = CIRCUMFERENCE, o arco está vazio.
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
-// Props recebidas pelo componente — todas vêm do App.tsx (ou futuramente do service worker).
-// O componente é só visual: não sabe nada de timers, só recebe valores e callbacks.
+// Props recebidas pelo componente — todas vêm do App.tsx.
+// O componente é puramente visual: não sabe nada de timers, só recebe valores e callbacks.
 interface TimerScreenProps {
-  timeLeft: number      // segundos restantes
-  totalTime: number     // duração total da sessão em segundos
-  isRunning: boolean    // true = a contar; false = pausado/parado
-  phase: string         // texto da fase atual, ex: "Foco"
-  onPlay: () => void        // chamado ao clicar play/pause
-  onSkipBack: () => void    // chamado ao clicar reiniciar
-  onSkipForward: () => void // chamado ao clicar saltar
+  timeLeft: number         // segundos restantes
+  totalTime: number        // duração total da sessão em segundos
+  isRunning: boolean       // true = a contar; false = pausado/parado
+  phase: string            // texto da fase atual, ex: "Foco"
+  hasStarted: boolean      // true quando o timer já iniciou (mostra botões reset/finish)
+  category: string         // nome da categoria de estudo actualmente seleccionada
+  showConfirm: boolean     // quando true exibe o diálogo de confirmação de troca de categoria
+  onPlay: () => void           // play / pause
+  onReset: () => void          // reinicia a sessão
+  onFinish: () => void         // força o fim da sessão (vai para o quiz)
+  onPrevCategory: () => void   // navega para a categoria anterior
+  onNextCategory: () => void   // navega para a categoria seguinte
+  onConfirmSwitch: () => void  // confirma a troca de categoria (reinicia o timer)
+  onCancelSwitch: () => void   // cancela a troca de categoria
 }
 
 export default function TimerScreen({
@@ -28,9 +35,16 @@ export default function TimerScreen({
   totalTime,
   isRunning,
   phase,
+  hasStarted,
+  category,
+  showConfirm,
   onPlay,
-  onSkipBack,
-  onSkipForward,
+  onReset,
+  onFinish,
+  onPrevCategory,
+  onNextCategory,
+  onConfirmSwitch,
+  onCancelSwitch,
 }: TimerScreenProps) {
   // Percentagem de tempo restante (0 a 1).
   // Protege divisão por zero quando totalTime ainda não está definido.
@@ -91,40 +105,75 @@ export default function TimerScreen({
         </div>
       </div>
 
-      {/* Controlos: reiniciar | play/pause | saltar */}
-      <div className="controls">
-        <button className="ctrl-btn ctrl-secondary" onClick={onSkipBack} aria-label="Reiniciar">
-          <SkipBack size={22} color="#6B7280" />
+      {/* Controlos: categoria ◀ | [reset] | play/pause | [finish] | categoria ▶
+          Os botões reset e finish só aparecem após o timer ter iniciado */}
+      <div className={`controls${hasStarted ? ' controls--active' : ''}`}>
+        {/* Navega para a categoria anterior */}
+        <button className="ctrl-btn ctrl-category" onClick={onPrevCategory} aria-label="Categoria anterior">
+          <ChevronLeft size={20} color="#6B7280" />
         </button>
+
+        {/* Reiniciar — visível apenas quando o timer já iniciou */}
+        {hasStarted && (
+          <button className="ctrl-btn ctrl-secondary" onClick={onReset} aria-label="Reiniciar sessão">
+            <RotateCcw size={18} color="#6B7280" />
+          </button>
+        )}
 
         {/* Botão principal — alterna entre Play e Pause consoante o estado */}
         <button className="ctrl-btn ctrl-primary" onClick={onPlay} aria-label={isRunning ? 'Pausar' : 'Iniciar'}>
           {isRunning
-            ? <Pause size={30} color="#FFFFFF" fill="#FFFFFF" />
-            : <Play size={30} color="#FFFFFF" fill="#FFFFFF" />}
+            ? <Pause size={28} color="#FFFFFF" fill="#FFFFFF" />
+            : <Play size={28} color="#FFFFFF" fill="#FFFFFF" />}
         </button>
 
-        <button className="ctrl-btn ctrl-secondary" onClick={onSkipForward} aria-label="Saltar">
-          <SkipForward size={22} color="#6B7280" />
+        {/* Finalizar — visível apenas quando o timer já iniciou */}
+        {hasStarted && (
+          <button className="ctrl-btn ctrl-secondary" onClick={onFinish} aria-label="Finalizar sessão">
+            <CheckCircle size={18} color="#6B7280" />
+          </button>
+        )}
+
+        {/* Navega para a categoria seguinte */}
+        <button className="ctrl-btn ctrl-category" onClick={onNextCategory} aria-label="Categoria seguinte">
+          <ChevronRight size={20} color="#6B7280" />
         </button>
       </div>
+
+      {/* Diálogo de confirmação — aparece por cima quando o utilizador tenta trocar
+          de categoria com o timer em execução */}
+      {showConfirm && (
+        <div className="confirm-overlay" role="dialog" aria-modal="true">
+          <div className="confirm-box">
+            <p className="confirm-title">Trocar de categoria?</p>
+            <p className="confirm-body">
+              O timer está em execução. Trocar de categoria vai reiniciar a sessão actual.
+            </p>
+            <div className="confirm-actions">
+              <button className="confirm-btn confirm-cancel" onClick={onCancelSwitch}>
+                Continuar a estudar
+              </button>
+              <button className="confirm-btn confirm-ok" onClick={onConfirmSwitch}>
+                Trocar e reiniciar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Card de pré-visualização da próxima pergunta de revisão
           Por agora os dados são estáticos; serão ligados ao storage futuramente */}
       <div className="review-card">
         <div className="card-header">
           <span className="card-label">Próxima revisão</span>
-          <div className="time-badge">
-            <Timer size={12} color="#9CA3AF" />
-            <span>+5 min</span>
+          {/* Badge da categoria activa — substituiu o antigo "+5 min" */}
+          <div className="subject-tag">
+            <Zap size={12} color="#FF6B6B" fill="#FF6B6B" />
+            <span>{category}</span>
           </div>
         </div>
         <div className="card-divider" />
         <div className="card-content">
-          <div className="subject-tag">
-            <Zap size={12} color="#FF6B6B" fill="#FF6B6B" />
-            <span>Programação</span>
-          </div>
           <p className="question-text">O que é uma Promise em JavaScript?</p>
           {/* Texto de dica — oculta a resposta até o timer acabar */}
           <p className="hint-text">Toque para revelar após o timer</p>
