@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "Learn in Pomodoro",
+  "short_name": "PomodoLearn",
+  "version": "0.1.0",
+  "description": "Pomodoro timer with flashcard review after each session.",
+  "action": {},
+  "side_panel": {
+    "default_path": "sidepanel.html"
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "permissions": ["storage", "alarms", "notifications", "sidePanel"]
+}
