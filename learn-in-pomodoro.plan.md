@@ -18,14 +18,20 @@ todos:
     content: "Side panel — ecrã timer: iniciar / pausar / reset / skip; seletor de categoria circular; confirmação ao trocar categoria com timer ativo; countdown derivado de endTime."
     status: done
   - id: nav-menu
-    content: "Navegação entre telas: Timer, Categorias e Perguntas. Menu inferior (bottom nav) com ícones e labels."
+    content: "Navegação entre telas: Timer, Categorias, Perguntas e Pomodoro. Menu inferior (bottom nav) com ícones e labels."
     status: done
   - id: categories-screen
-    content: "Tela Categorias: listar, criar, editar e remover categorias guardadas em chrome.storage.local."
-    status: pending
+    content: "Tela Categorias: listar, criar, editar e remover categorias (nome, cor, emoji). Dialog de confirmação de exclusão com aviso de reassociação de perguntas. Estado local por enquanto (TODO: lift state para App.tsx)."
+    status: done
   - id: questions-screen
-    content: "Tela Perguntas: listar, criar, editar e remover flashcards. Cada pergunta tem: prompt, resposta, categoria, dificuldade (fácil/médio/difícil)."
-    status: pending
+    content: "Tela Perguntas: listar, criar, editar e remover flashcards com formato múltipla escolha (A/B/C/D). Cada pergunta tem: enunciado, 4 opções, resposta correta, categoria. Estado local por enquanto (TODO: lift state para App.tsx)."
+    status: done
+  - id: pomodoro-screen
+    content: "Tela Pomodoro: listar, criar, editar e remover pomodoros. Cada pomodoro tem nome, categoria e conjunto de perguntas selecionadas. Filtro de perguntas por categoria no formulário. Estado local por enquanto (TODO: lift state para App.tsx)."
+    status: done
+  - id: timer-review-card
+    content: "Card de pré-visualização no timer: mostrar nome do pomodoro selecionado e lista numerada das suas perguntas (em vez de pergunta única hardcoded)."
+    status: done
   - id: quiz-ui
     content: "Tela Quiz (pós-pomodoro): exibe pergunta da categoria ativa; utilizador revela a resposta; botão para marcar como concluído e voltar ao timer."
     status: pending
@@ -122,8 +128,9 @@ O side panel tem um **bottom nav** com as seguintes telas:
 | Ícone | Label | Rota | Estado |
 |-------|-------|------|--------|
 | Timer | Timer | `timer` | ✅ feito |
-| BookOpen | Perguntas | `questions` | 🔲 a fazer |
-| Tag | Categorias | `categories` | 🔲 a fazer |
+| BookOpen | Perguntas | `questions` | ✅ feito |
+| Tag | Categorias | `categories` | ✅ feito |
+| Coffee | Pomodoro | `pomodoro` | ✅ feito |
 
 A tela de **Quiz** (`quiz`) é ativada automaticamente quando `phase === 'quiz_pending'` — não aparece no menu.
 
@@ -145,12 +152,14 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 2. ✅ **Manifest** com `side_panel`, permissões, ícones
 3. ✅ **Abertura**: `chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })`
 4. ✅ **Worker**: `chrome.alarms`, persistência, `onAlarm` → notificação + `quiz_pending`
-5. ✅ **Side panel — timer**: iniciar / pausar / reset / skip; seletor de categoria
-6. ✅ **Navegação**: bottom nav com Timer, Perguntas e Categorias
-7. 🔲 **Tela Categorias**: CRUD de categorias em `chrome.storage.local`
-8. 🔲 **Tela Perguntas**: CRUD de flashcards com dificuldade e categoria
-9. 🔲 **Side panel — quiz** pós-pomodoro: exibe pergunta da categoria ativa
-10. 🔲 **Testes**: alarme com painel fechado; clicar notificação abre painel no quiz
+5. ✅ **Side panel — timer**: iniciar / pausar / reset / skip; seletor de categoria; card de pré-visualização do pomodoro com lista numerada de perguntas
+6. ✅ **Navegação**: bottom nav com Timer, Perguntas, Categorias e Pomodoro
+7. ✅ **Tela Categorias**: CRUD com nome, cor e emoji; dialog de confirmação de exclusão
+8. ✅ **Tela Perguntas**: CRUD de flashcards múltipla escolha (A/B/C/D); filtro por categoria
+9. ✅ **Tela Pomodoro**: CRUD; seleção de perguntas por categoria; "Selecionar todas"
+10. 🔲 **Lift state**: unificar Categorias, Perguntas e Pomodoros no App.tsx; implementar cascade delete (reassociar perguntas para categoria default ao remover categoria)
+11. 🔲 **Side panel — quiz** pós-pomodoro: exibe pergunta da categoria ativa
+12. 🔲 **Testes**: alarme com painel fechado; clicar notificação abre painel no quiz
 
 ## Checklist rápido de validação
 
