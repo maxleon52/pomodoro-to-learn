@@ -181,6 +181,12 @@ export default function App() {
             phase={phaseLabel(workerState)}
             hasStarted={workerState.phase !== 'idle'}
             category={CATEGORIES[categoryIndex]}
+            pomodoroName="Revisão Programação"
+            questions={[
+              'O que é uma closure em JavaScript?',
+              'O que é uma Promise em JavaScript?',
+              'Qual a diferença entre let e const?',
+            ]}
             showConfirm={pendingCategory !== null}
             onPlay={handlePlay}
             onReset={handleReset}

@@ -20,6 +20,8 @@ interface TimerScreenProps {
   phase: string            // texto da fase atual, ex: "Foco"
   hasStarted: boolean      // true quando o timer já iniciou (mostra botões reset/finish)
   category: string         // nome da categoria de estudo actualmente seleccionada
+  pomodoroName: string     // nome do pomodoro seleccionado
+  questions: string[]      // perguntas do pomodoro seleccionado (só o enunciado)
   showConfirm: boolean     // quando true exibe o diálogo de confirmação de troca de categoria
   onPlay: () => void           // play / pause
   onReset: () => void          // reinicia a sessão
@@ -37,6 +39,8 @@ export default function TimerScreen({
   phase,
   hasStarted,
   category,
+  pomodoroName,
+  questions,
   showConfirm,
   onPlay,
   onReset,
@@ -174,9 +178,15 @@ export default function TimerScreen({
         </div>
         <div className="card-divider" />
         <div className="card-content">
-          <p className="question-text">O que é uma Promise em JavaScript?</p>
-          {/* Texto de dica — oculta a resposta até o timer acabar */}
-          <p className="hint-text">Toque para revelar após o timer</p>
+          <p className="pomodoro-name">{pomodoroName}</p>
+          <ul className="question-list">
+            {questions.map((q, i) => (
+              <li key={i} className="question-list-item">
+                <span className="question-list-index">{i + 1}</span>
+                <span className="question-list-text">{q}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </div>
