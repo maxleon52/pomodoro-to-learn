@@ -149,9 +149,9 @@ export default function TimerScreen({
       {showConfirm && (
         <div className="confirm-overlay" role="dialog" aria-modal="true">
           <div className="confirm-box">
-            <p className="confirm-title">Trocar de categoria?</p>
+            <p className="confirm-title">Trocar de pomodoro?</p>
             <p className="confirm-body">
-              O timer está em execução. Trocar de categoria vai reiniciar a sessão actual.
+              O timer está em execução. Trocar de pomodoro vai reiniciar a sessão actual.
             </p>
             <div className="confirm-actions">
               <button className="confirm-btn confirm-cancel" onClick={onCancelSwitch}>

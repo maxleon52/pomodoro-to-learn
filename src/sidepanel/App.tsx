@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import './styles/global.css'
 import TimerScreen from './components/timer-screen'
+import QuizScreen from './components/quiz-screen'
 import CategoriesScreen from './components/categories-screen'
 import QuestionsScreen from './components/questions-screen'
 import PomodoroScreen from './components/pomodoro-screen'
@@ -10,8 +11,26 @@ import type { TimerState, WorkerMessage } from '../shared/types'
 // Duração padrão de uma sessão: 25 minutos em segundos
 const DEFAULT_DURATION = 25 * 60
 
-// Categorias de estudo disponíveis — futuramente virão do chrome.storage.local
-const CATEGORIES = ['Inglês', 'Programação', 'Entrevistas']
+// Dados placeholder — serão unificados via lift state quando persistência for implementada
+const CATEGORIES = [
+  { id: '1', name: 'Programação', color: '#FF6B6B', emoji: '💻' },
+  { id: '2', name: 'Inglês',      color: '#6366F1', emoji: '🌍' },
+  { id: '3', name: 'Entrevistas', color: '#22C55E', emoji: '🎓' },
+]
+
+const QUESTIONS = [
+  { id: '1', categoryId: '1', question: 'O que é uma closure em JavaScript?',       options: ['Tipo de variável global', 'Função com acesso ao escopo externo', 'Tipo de loop', 'Método de array']                         as [string,string,string,string], correctAnswer: 'B' as const },
+  { id: '2', categoryId: '2', question: "What is the past tense of 'go'?",          options: ['Goed', 'Went', 'Gone', 'Going']                                                                                              as [string,string,string,string], correctAnswer: 'B' as const },
+  { id: '3', categoryId: '3', question: 'Qual a diferença entre TCP e UDP?',        options: ['TCP é mais rápido', 'TCP garante entrega; UDP não', 'UDP é mais seguro', 'São protocolos de email']                          as [string,string,string,string], correctAnswer: 'B' as const },
+  { id: '4', categoryId: '1', question: 'O que é uma Promise em JavaScript?',       options: ['Função assíncrona', 'Objeto que representa valor futuro', 'Tipo de loop', 'Método de ordenação']                            as [string,string,string,string], correctAnswer: 'B' as const },
+  { id: '5', categoryId: '2', question: "How do you use 'despite' in a sentence?",  options: ['Despite I was tired', 'Despite being tired', 'Despite of being tired', 'Despite to be tired']                               as [string,string,string,string], correctAnswer: 'B' as const },
+]
+
+const POMODOROS = [
+  { id: '1', name: 'Estudar Inglês',      categoryId: '2', questionIds: ['2', '5'] },
+  { id: '2', name: 'Treinar Entrevistas', categoryId: '3', questionIds: ['3'] },
+  { id: '3', name: 'Revisão Programação', categoryId: '1', questionIds: ['1', '4'] },
+]
 
 // Envia uma mensagem ao service worker e aguarda a resposta com o estado actualizado
 function sendToWorker(msg: WorkerMessage): Promise<TimerState> {
@@ -53,11 +72,19 @@ export default function App() {
   // Referência ao intervalo de countdown para poder limpá-lo correctamente
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  // Índice da categoria de estudo actualmente seleccionada
-  const [categoryIndex, setCategoryIndex] = useState(0)
+  // Índice do pomodoro actualmente seleccionado
+  const [pomodoroIndex, setPomodoroIndex] = useState(0)
 
   // Quando não é null, guarda o índice pendente e mostra o diálogo de confirmação
-  const [pendingCategory, setPendingCategory] = useState<number | null>(null)
+  const [pendingPomodoro, setPendingPomodoro] = useState<number | null>(null)
+
+  // Dados derivados do pomodoro activo
+  const activePomodoro = POMODOROS[pomodoroIndex]
+  const activeCategory = CATEGORIES.find(c => c.id === activePomodoro.categoryId)!
+  const activeQuestions = activePomodoro.questionIds
+    .map(id => QUESTIONS.find(q => q.id === id)?.question ?? '')
+    .filter(Boolean)
+  const activeQuizQuestion = QUESTIONS.find(q => q.id === activePomodoro.questionIds[0])
 
   // Ao montar o side panel: pede o estado actual ao worker para sincronizar a UI
   // (o painel pode ter sido fechado e reaberto com o timer a correr)
@@ -133,38 +160,58 @@ export default function App() {
     setTimeLeft(0)
   }
 
-  // Navega para a categoria anterior ou seguinte no array circular.
+  // Navega para o pomodoro anterior ou seguinte no array circular.
   // Se o timer estiver a correr, guarda o índice pendente e exibe o diálogo de confirmação.
-  function switchCategory(next: number) {
+  function switchPomodoro(next: number) {
     if (workerState.running) {
-      setPendingCategory(next)
+      setPendingPomodoro(next)
     } else {
-      setCategoryIndex(next)
+      setPomodoroIndex(next)
     }
   }
 
   function handlePrevCategory() {
-    switchCategory((categoryIndex - 1 + CATEGORIES.length) % CATEGORIES.length)
+    switchPomodoro((pomodoroIndex - 1 + POMODOROS.length) % POMODOROS.length)
   }
 
   function handleNextCategory() {
-    switchCategory((categoryIndex + 1) % CATEGORIES.length)
+    switchPomodoro((pomodoroIndex + 1) % POMODOROS.length)
   }
 
-  // Utilizador confirmou a troca — reinicia o timer e muda de categoria
+  // Utilizador confirmou a troca — reinicia o timer e muda de pomodoro
   async function handleConfirmSwitch() {
-    if (pendingCategory === null) return
+    if (pendingPomodoro === null) return
     await handleReset()
-    setCategoryIndex(pendingCategory)
-    setPendingCategory(null)
+    setPomodoroIndex(pendingPomodoro)
+    setPendingPomodoro(null)
   }
 
   // Utilizador cancelou — descarta a mudança pendente
   function handleCancelSwitch() {
-    setPendingCategory(null)
+    setPendingPomodoro(null)
+  }
+
+  // Conclui o quiz e volta ao estado idle
+  async function handleQuizDone() {
+    const state = await sendToWorker({ type: 'RESET' })
+    setWorkerState(state)
+    setTimeLeft(DEFAULT_DURATION)
   }
 
   function renderScreen() {
+    // Quiz sobrepõe-se a qualquer tela quando a sessão terminou
+    if (workerState.phase === 'quiz_pending' && activeQuizQuestion) {
+      return (
+        <QuizScreen
+          question={activeQuizQuestion.question}
+          options={activeQuizQuestion.options}
+          correctAnswer={activeQuizQuestion.correctAnswer}
+          category={activeCategory.name}
+          onDone={handleQuizDone}
+        />
+      )
+    }
+
     switch (screen) {
       case 'categories':
         return <CategoriesScreen />
@@ -180,14 +227,10 @@ export default function App() {
             isRunning={workerState.running}
             phase={phaseLabel(workerState)}
             hasStarted={workerState.phase !== 'idle'}
-            category={CATEGORIES[categoryIndex]}
-            pomodoroName="Revisão Programação"
-            questions={[
-              'O que é uma closure em JavaScript?',
-              'O que é uma Promise em JavaScript?',
-              'Qual a diferença entre let e const?',
-            ]}
-            showConfirm={pendingCategory !== null}
+            category={activeCategory.name}
+            pomodoroName={activePomodoro.name}
+            questions={activeQuestions}
+            showConfirm={pendingPomodoro !== null}
             onPlay={handlePlay}
             onReset={handleReset}
             onFinish={handleFinish}
