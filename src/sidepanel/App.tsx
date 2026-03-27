@@ -78,13 +78,26 @@ export default function App() {
   // Quando não é null, guarda o índice pendente e mostra o diálogo de confirmação
   const [pendingPomodoro, setPendingPomodoro] = useState<number | null>(null)
 
+  // IDs das perguntas já respondidas no ciclo actual do pomodoro
+  const [answeredIds, setAnsweredIds] = useState<string[]>([])
+
   // Dados derivados do pomodoro activo
   const activePomodoro = POMODOROS[pomodoroIndex]
   const activeCategory = CATEGORIES.find(c => c.id === activePomodoro.categoryId)!
-  const activeQuestions = activePomodoro.questionIds
-    .map(id => QUESTIONS.find(q => q.id === id)?.question ?? '')
-    .filter(Boolean)
-  const activeQuizQuestion = QUESTIONS.find(q => q.id === activePomodoro.questionIds[0])
+
+  // Perguntas do pomodoro ainda não respondidas (com dados completos para o quiz)
+  const unansweredFull = activePomodoro.questionIds
+    .map(id => QUESTIONS.find(q => q.id === id)!)
+    .filter(q => q && !answeredIds.includes(q.id))
+
+  // Até 5 perguntas para a rodada actual
+  const questionsForRound = unansweredFull.slice(0, 5)
+
+  // Todas as perguntas foram respondidas neste ciclo
+  const isCompleted = activePomodoro.questionIds.length > 0 && unansweredFull.length === 0
+
+  // Textos das perguntas restantes — exibidos no card do timer
+  const remainingQuestionTexts = unansweredFull.map(q => q.question)
 
   // Ao montar o side panel: pede o estado actual ao worker para sincronizar a UI
   // (o painel pode ter sido fechado e reaberto com o timer a correr)
@@ -160,6 +173,16 @@ export default function App() {
     setTimeLeft(0)
   }
 
+  // Quando o pomodoro está completo e o quiz dispara, reseta para idle automaticamente
+  useEffect(() => {
+    if (workerState.phase === 'quiz_pending' && isCompleted) {
+      sendToWorker({ type: 'RESET' }).then(state => {
+        setWorkerState(state)
+        setTimeLeft(DEFAULT_DURATION)
+      })
+    }
+  }, [workerState.phase, isCompleted])
+
   // Navega para o pomodoro anterior ou seguinte no array circular.
   // Se o timer estiver a correr, guarda o índice pendente e exibe o diálogo de confirmação.
   function switchPomodoro(next: number) {
@@ -167,6 +190,7 @@ export default function App() {
       setPendingPomodoro(next)
     } else {
       setPomodoroIndex(next)
+      setAnsweredIds([])
     }
   }
 
@@ -183,6 +207,7 @@ export default function App() {
     if (pendingPomodoro === null) return
     await handleReset()
     setPomodoroIndex(pendingPomodoro)
+    setAnsweredIds([])
     setPendingPomodoro(null)
   }
 
@@ -191,23 +216,35 @@ export default function App() {
     setPendingPomodoro(null)
   }
 
-  // Conclui o quiz e volta ao estado idle
-  async function handleQuizDone() {
-    const state = await sendToWorker({ type: 'RESET' })
+  // Utilizador respondeu uma pergunta — marca como respondida e inicia nova sessão de foco
+  async function handleAnswered(questionId: string) {
+    setAnsweredIds(prev => [...prev, questionId])
+    const state = await sendToWorker({ type: 'START', duration: DEFAULT_DURATION })
     setWorkerState(state)
     setTimeLeft(DEFAULT_DURATION)
   }
 
+  // Rodada encerrou sem resposta (todas as perguntas expiraram) — reinicia o foco
+  async function handleRoundEnd() {
+    const state = await sendToWorker({ type: 'START', duration: DEFAULT_DURATION })
+    setWorkerState(state)
+    setTimeLeft(DEFAULT_DURATION)
+  }
+
+  // Reinicia o progresso do pomodoro (reseta perguntas respondidas)
+  function handleRestartPomodoro() {
+    setAnsweredIds([])
+  }
+
   function renderScreen() {
-    // Quiz sobrepõe-se a qualquer tela quando a sessão terminou
-    if (workerState.phase === 'quiz_pending' && activeQuizQuestion) {
+    // Quiz sobrepõe qualquer tela quando há perguntas pendentes na rodada
+    if (workerState.phase === 'quiz_pending' && !isCompleted && questionsForRound.length > 0) {
       return (
         <QuizScreen
-          question={activeQuizQuestion.question}
-          options={activeQuizQuestion.options}
-          correctAnswer={activeQuizQuestion.correctAnswer}
+          questions={questionsForRound}
           category={activeCategory.name}
-          onDone={handleQuizDone}
+          onAnswered={handleAnswered}
+          onRoundEnd={handleRoundEnd}
         />
       )
     }
@@ -229,7 +266,8 @@ export default function App() {
             hasStarted={workerState.phase !== 'idle'}
             category={activeCategory.name}
             pomodoroName={activePomodoro.name}
-            questions={activeQuestions}
+            questions={remainingQuestionTexts}
+            isCompleted={isCompleted}
             showConfirm={pendingPomodoro !== null}
             onPlay={handlePlay}
             onReset={handleReset}
@@ -238,6 +276,7 @@ export default function App() {
             onNextCategory={handleNextCategory}
             onConfirmSwitch={handleConfirmSwitch}
             onCancelSwitch={handleCancelSwitch}
+            onRestartPomodoro={handleRestartPomodoro}
           />
         )
     }

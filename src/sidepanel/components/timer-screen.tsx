@@ -21,15 +21,17 @@ interface TimerScreenProps {
   hasStarted: boolean      // true quando o timer já iniciou (mostra botões reset/finish)
   category: string         // nome da categoria de estudo actualmente seleccionada
   pomodoroName: string     // nome do pomodoro seleccionado
-  questions: string[]      // perguntas do pomodoro seleccionado (só o enunciado)
-  showConfirm: boolean     // quando true exibe o diálogo de confirmação de troca de categoria
+  questions: string[]      // perguntas ainda não respondidas (só o enunciado)
+  isCompleted: boolean     // true quando todas as perguntas do pomodoro foram respondidas
+  showConfirm: boolean     // quando true exibe o diálogo de confirmação de troca de pomodoro
   onPlay: () => void           // play / pause
   onReset: () => void          // reinicia a sessão
   onFinish: () => void         // força o fim da sessão (vai para o quiz)
   onPrevCategory: () => void   // navega para a categoria anterior
   onNextCategory: () => void   // navega para a categoria seguinte
-  onConfirmSwitch: () => void  // confirma a troca de categoria (reinicia o timer)
-  onCancelSwitch: () => void   // cancela a troca de categoria
+  onConfirmSwitch: () => void   // confirma a troca de pomodoro (reinicia o timer)
+  onCancelSwitch: () => void    // cancela a troca de pomodoro
+  onRestartPomodoro: () => void // reinicia o progresso do pomodoro (limpa perguntas respondidas)
 }
 
 export default function TimerScreen({
@@ -41,6 +43,7 @@ export default function TimerScreen({
   category,
   pomodoroName,
   questions,
+  isCompleted,
   showConfirm,
   onPlay,
   onReset,
@@ -49,6 +52,7 @@ export default function TimerScreen({
   onNextCategory,
   onConfirmSwitch,
   onCancelSwitch,
+  onRestartPomodoro,
 }: TimerScreenProps) {
   // Percentagem de tempo restante (0 a 1).
   // Protege divisão por zero quando totalTime ainda não está definido.
@@ -170,24 +174,33 @@ export default function TimerScreen({
       <div className="review-card">
         <div className="card-header">
           <span className="card-label">Próxima revisão</span>
-          {/* Badge da categoria activa — substituiu o antigo "+5 min" */}
           <div className="subject-tag">
             <Zap size={12} color="#FF6B6B" fill="#FF6B6B" />
             <span>{category}</span>
           </div>
         </div>
         <div className="card-divider" />
-        <div className="card-content">
-          <p className="pomodoro-name">{pomodoroName}</p>
-          <ul className="question-list">
-            {questions.map((q, i) => (
-              <li key={i} className="question-list-item">
-                <span className="question-list-index">{i + 1}</span>
-                <span className="question-list-text">{q}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
+        {isCompleted ? (
+          <div className="card-completed">
+            <span className="card-completed-title">🎉 Pomodoro concluído!</span>
+            <span className="card-completed-sub">Todas as perguntas foram respondidas.</span>
+            <button className="card-restart-btn" onClick={onRestartPomodoro}>
+              Reiniciar ciclo
+            </button>
+          </div>
+        ) : (
+          <div className="card-content">
+            <p className="pomodoro-name">{pomodoroName}</p>
+            <ul className="question-list">
+              {questions.map((q, i) => (
+                <li key={i} className="question-list-item">
+                  <span className="question-list-index">{i + 1}</span>
+                  <span className="question-list-text">{q}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   )

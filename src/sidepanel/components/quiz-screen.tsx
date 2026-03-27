@@ -1,48 +1,98 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Flame, Settings2, Send, CircleCheck, Zap } from 'lucide-react'
 import './quiz-screen.css'
 
 type Answer = 'A' | 'B' | 'C' | 'D'
+const LABELS: Answer[] = ['A', 'B', 'C', 'D']
+const QUESTION_TIME = 60 // segundos por pergunta
 
-interface QuizScreenProps {
+export interface QuizQuestion {
+  id: string
   question: string
   options: [string, string, string, string]
   correctAnswer: Answer
-  category: string
-  onDone: () => void
 }
 
-const LABELS: Answer[] = ['A', 'B', 'C', 'D']
+interface QuizScreenProps {
+  questions: QuizQuestion[]   // até 5 perguntas da rodada
+  category: string
+  onAnswered: (questionId: string) => void  // usuário respondeu → encerra rodada
+  onRoundEnd: () => void                    // todas as perguntas expiraram → encerra rodada
+}
 
-export default function QuizScreen({
-  question,
-  options,
-  correctAnswer,
-  category,
-  onDone,
-}: QuizScreenProps) {
-  const [selected, setSelected] = useState<Answer | null>(null)
-  const [confirmed, setConfirmed] = useState(false)
+interface QuizState {
+  currentIndex: number
+  selected: Answer | null
+  confirmed: boolean
+  timeLeft: number
+}
+
+export default function QuizScreen({ questions, category, onAnswered, onRoundEnd }: QuizScreenProps) {
+  const [quiz, setQuiz] = useState<QuizState>({
+    currentIndex: 0,
+    selected: null,
+    confirmed: false,
+    timeLeft: QUESTION_TIME,
+  })
+
+  // Refs para evitar stale closures nos efeitos do timer
+  const onRoundEndRef = useRef(onRoundEnd)
+  const onAnsweredRef = useRef(onAnswered)
+  const questionsLenRef = useRef(questions.length)
+  useEffect(() => { onRoundEndRef.current = onRoundEnd }, [onRoundEnd])
+  useEffect(() => { onAnsweredRef.current = onAnswered }, [onAnswered])
+  useEffect(() => { questionsLenRef.current = questions.length }, [questions.length])
+
+  // Countdown — reinicia quando muda de pergunta ou quando é confirmada
+  useEffect(() => {
+    if (quiz.confirmed) return
+    const id = setInterval(() => {
+      setQuiz(prev => {
+        if (prev.confirmed) return prev
+        return { ...prev, timeLeft: Math.max(0, prev.timeLeft - 1) }
+      })
+    }, 1000)
+    return () => clearInterval(id)
+  }, [quiz.currentIndex, quiz.confirmed])
+
+  // Quando o tempo esgota: avança para a próxima pergunta ou encerra a rodada
+  useEffect(() => {
+    if (quiz.timeLeft > 0 || quiz.confirmed) return
+    const next = quiz.currentIndex + 1
+    if (next < questionsLenRef.current) {
+      setQuiz({ currentIndex: next, selected: null, confirmed: false, timeLeft: QUESTION_TIME })
+    } else {
+      onRoundEndRef.current()
+    }
+  }, [quiz.timeLeft, quiz.confirmed, quiz.currentIndex])
+
+  const currentQuestion = questions[quiz.currentIndex]
 
   function handleConfirm() {
-    if (!selected) return
-    if (confirmed) { onDone(); return }
-    setConfirmed(true)
+    if (!quiz.selected) return
+    if (quiz.confirmed) {
+      onAnsweredRef.current(currentQuestion.id)
+      return
+    }
+    setQuiz(prev => ({ ...prev, confirmed: true }))
   }
 
   function optClass(letter: Answer) {
-    if (!confirmed) return `quiz-opt${selected === letter ? ' quiz-opt--selected' : ''}`
-    if (letter === correctAnswer) return 'quiz-opt quiz-opt--correct'
-    if (letter === selected) return 'quiz-opt quiz-opt--wrong'
+    if (!quiz.confirmed) return `quiz-opt${quiz.selected === letter ? ' quiz-opt--selected' : ''}`
+    if (letter === currentQuestion.correctAnswer) return 'quiz-opt quiz-opt--correct'
+    if (letter === quiz.selected) return 'quiz-opt quiz-opt--wrong'
     return 'quiz-opt'
   }
 
   function badgeClass(letter: Answer) {
-    if (!confirmed) return `quiz-badge${selected === letter ? ' quiz-badge--on' : ''}`
-    if (letter === correctAnswer) return 'quiz-badge quiz-badge--on'
-    if (letter === selected) return 'quiz-badge quiz-badge--on'
+    if (!quiz.confirmed) return `quiz-badge${quiz.selected === letter ? ' quiz-badge--on' : ''}`
+    if (letter === currentQuestion.correctAnswer) return 'quiz-badge quiz-badge--on'
+    if (letter === quiz.selected) return 'quiz-badge quiz-badge--on'
     return 'quiz-badge'
   }
+
+  const mm = Math.floor(quiz.timeLeft / 60).toString().padStart(2, '0')
+  const ss = (quiz.timeLeft % 60).toString().padStart(2, '0')
 
   return (
     <div className="quiz-screen">
@@ -57,16 +107,23 @@ export default function QuizScreen({
         </button>
       </div>
 
-      {/* Resumo da sessão encerrada */}
+      {/* Resumo da sessão encerrada + countdown da pergunta */}
       <div className="quiz-mini-row">
         <div className="quiz-mini-ring">
-          <span className="quiz-mini-time">00:00</span>
+          <span className="quiz-mini-time">{mm}:{ss}</span>
         </div>
         <div className="quiz-mini-text">
           <span className="quiz-mini-title">Sessão encerrada</span>
           <span className="quiz-mini-sub">Responda para continuar</span>
         </div>
         <CircleCheck size={20} color="#FF6B6B" />
+      </div>
+
+      {/* Progresso da rodada */}
+      <div className="quiz-progress">
+        <span className="quiz-progress-label">
+          Pergunta {quiz.currentIndex + 1} de {questions.length}
+        </span>
       </div>
 
       {/* Card da questão */}
@@ -79,17 +136,17 @@ export default function QuizScreen({
           </div>
         </div>
 
-        <p className="quiz-question">{question}</p>
+        <p className="quiz-question">{currentQuestion.question}</p>
 
         <div className="quiz-opts">
           {LABELS.map((letter, i) => (
             <button
               key={letter}
               className={optClass(letter)}
-              onClick={() => !confirmed && setSelected(letter)}
+              onClick={() => !quiz.confirmed && setQuiz(prev => ({ ...prev, selected: letter }))}
             >
               <span className={badgeClass(letter)}>{letter}</span>
-              <span className="quiz-opt-text">{options[i]}</span>
+              <span className="quiz-opt-text">{currentQuestion.options[i]}</span>
             </button>
           ))}
         </div>
@@ -99,10 +156,10 @@ export default function QuizScreen({
         <button
           className="quiz-submit"
           onClick={handleConfirm}
-          disabled={!selected}
+          disabled={!quiz.selected}
         >
           <Send size={16} color="#FFFFFF" />
-          <span>{confirmed ? 'Continuar' : 'Confirmar Resposta'}</span>
+          <span>{quiz.confirmed ? 'Continuar' : 'Confirmar Resposta'}</span>
         </button>
       </div>
     </div>
