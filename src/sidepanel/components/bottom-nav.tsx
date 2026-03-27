@@ -1,7 +1,7 @@
-import { Timer, BookOpen, Tag } from 'lucide-react'
+import { Timer, BookOpen, Tag, Coffee } from 'lucide-react'
 import './bottom-nav.css'
 
-export type Screen = 'timer' | 'questions' | 'categories'
+export type Screen = 'timer' | 'questions' | 'categories' | 'pomodoro'
 
 interface BottomNavProps {
   active: Screen
@@ -23,6 +23,11 @@ const ITEMS: { screen: Screen; icon: React.ReactNode; label: string }[] = [
     screen: 'categories',
     icon: <Tag size={22} />,
     label: 'Categorias',
+  },
+  {
+    screen: 'pomodoro',
+    icon: <Coffee size={22} />,
+    label: 'Pomodoro',
   },
 ]
 

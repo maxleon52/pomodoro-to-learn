@@ -169,6 +169,8 @@ export default function App() {
         return <CategoriesScreen />
       case 'questions':
         return <QuestionsScreen />
+      case 'pomodoro':
+        return <div className="placeholder-screen">Pomodoro</div>
       default:
         return (
           <TimerScreen
