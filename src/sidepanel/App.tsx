@@ -3,6 +3,7 @@ import './styles/global.css'
 import TimerScreen from './components/timer-screen'
 import CategoriesScreen from './components/categories-screen'
 import QuestionsScreen from './components/questions-screen'
+import PomodoroScreen from './components/pomodoro-screen'
 import BottomNav, { type Screen } from './components/bottom-nav'
 import type { TimerState, WorkerMessage } from '../shared/types'
 
@@ -170,7 +171,7 @@ export default function App() {
       case 'questions':
         return <QuestionsScreen />
       case 'pomodoro':
-        return <div className="placeholder-screen">Pomodoro</div>
+        return <PomodoroScreen />
       default:
         return (
           <TimerScreen
