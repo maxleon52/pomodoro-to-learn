@@ -3,7 +3,7 @@
   flex-direction: column;
   gap: 16px;
   padding: 24px;
-  min-height: 100vh;
+  flex: 1;
   background: #ffffff;
 }
 

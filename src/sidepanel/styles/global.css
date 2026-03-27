@@ -8,7 +8,21 @@ body {
   font-family: 'Inter', sans-serif;
   background: #ffffff;
   color: #1a1a1a;
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 button {

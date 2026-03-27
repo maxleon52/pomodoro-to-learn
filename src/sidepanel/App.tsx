@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import './styles/global.css'
 import TimerScreen from './components/timer-screen'
+import CategoriesScreen from './components/categories-screen'
+import QuestionsScreen from './components/questions-screen'
+import BottomNav, { type Screen } from './components/bottom-nav'
 import type { TimerState, WorkerMessage } from '../shared/types'
 
 // Duração padrão de uma sessão: 25 minutos em segundos
@@ -32,6 +35,9 @@ function phaseLabel(state: TimerState): string {
 }
 
 export default function App() {
+  // Tela activa no bottom nav
+  const [screen, setScreen] = useState<Screen>('timer')
+
   // workerState: estado autoritativo vindo do service worker / storage
   const [workerState, setWorkerState] = useState<TimerState>({
     phase: 'idle',
@@ -157,22 +163,38 @@ export default function App() {
     setPendingCategory(null)
   }
 
+  function renderScreen() {
+    switch (screen) {
+      case 'categories':
+        return <CategoriesScreen />
+      case 'questions':
+        return <QuestionsScreen />
+      default:
+        return (
+          <TimerScreen
+            timeLeft={timeLeft}
+            totalTime={DEFAULT_DURATION}
+            isRunning={workerState.running}
+            phase={phaseLabel(workerState)}
+            hasStarted={workerState.phase !== 'idle'}
+            category={CATEGORIES[categoryIndex]}
+            showConfirm={pendingCategory !== null}
+            onPlay={handlePlay}
+            onReset={handleReset}
+            onFinish={handleFinish}
+            onPrevCategory={handlePrevCategory}
+            onNextCategory={handleNextCategory}
+            onConfirmSwitch={handleConfirmSwitch}
+            onCancelSwitch={handleCancelSwitch}
+          />
+        )
+    }
+  }
+
   return (
-    <TimerScreen
-      timeLeft={timeLeft}
-      totalTime={DEFAULT_DURATION}
-      isRunning={workerState.running}
-      phase={phaseLabel(workerState)}
-      hasStarted={workerState.phase !== 'idle'}
-      category={CATEGORIES[categoryIndex]}
-      showConfirm={pendingCategory !== null}
-      onPlay={handlePlay}
-      onReset={handleReset}
-      onFinish={handleFinish}
-      onPrevCategory={handlePrevCategory}
-      onNextCategory={handleNextCategory}
-      onConfirmSwitch={handleConfirmSwitch}
-      onCancelSwitch={handleCancelSwitch}
-    />
+    <div className="app-shell">
+      <div className="app-content">{renderScreen()}</div>
+      <BottomNav active={screen} onChange={setScreen} />
+    </div>
   )
 }
