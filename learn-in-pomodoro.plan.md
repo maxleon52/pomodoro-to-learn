@@ -15,7 +15,7 @@ todos:
     content: "Service worker: chrome.alarms + estado em chrome.storage.local; onAlarm → notificação + phase quiz_pending; messaging sidepanel↔worker e badge opcional."
     status: done
   - id: timer-ui
-    content: "Side panel — ecrã timer: iniciar / pausar / reset / skip; seletor de categoria circular; confirmação ao trocar categoria com timer ativo; countdown derivado de endTime."
+    content: "Side panel — ecrã timer: iniciar / pausar / reset / skip; seletor de pomodoro circular (prev/next atualiza nome, perguntas e categoria); confirmação ao trocar pomodoro com timer ativo; countdown derivado de endTime."
     status: done
   - id: nav-menu
     content: "Navegação entre telas: Timer, Categorias, Perguntas e Pomodoro. Menu inferior (bottom nav) com ícones e labels."
@@ -33,8 +33,8 @@ todos:
     content: "Card de pré-visualização no timer: mostrar nome do pomodoro selecionado e lista numerada das suas perguntas (em vez de pergunta única hardcoded)."
     status: done
   - id: quiz-ui
-    content: "Tela Quiz (pós-pomodoro): exibe pergunta da categoria ativa; utilizador revela a resposta; botão para marcar como concluído e voltar ao timer."
-    status: pending
+    content: "Tela Quiz (pós-pomodoro): rodada de até 5 perguntas não respondidas, 1min por pergunta. Expirou sem resposta → avança automaticamente. Respondeu → revela correto/errado → inicia próxima sessão de 25min automaticamente. Progresso rastreado em answeredIds; card do timer mostra perguntas restantes; quando todas respondidas mostra 'Pomodoro concluído' + botão 'Reiniciar ciclo'. Trocar pomodoro reseta o progresso."
+    status: done
   - id: quiz-focused-mode
     content: "Modo Focado: sessão de quiz sem pomodoro, com filtro por dificuldade. Acessível a partir do menu."
     status: future
@@ -157,8 +157,8 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 7. ✅ **Tela Categorias**: CRUD com nome, cor e emoji; dialog de confirmação de exclusão
 8. ✅ **Tela Perguntas**: CRUD de flashcards múltipla escolha (A/B/C/D); filtro por categoria
 9. ✅ **Tela Pomodoro**: CRUD; seleção de perguntas por categoria; "Selecionar todas"
-10. 🔲 **Lift state**: unificar Categorias, Perguntas e Pomodoros no App.tsx; implementar cascade delete (reassociar perguntas para categoria default ao remover categoria)
-11. 🔲 **Side panel — quiz** pós-pomodoro: exibe pergunta da categoria ativa
+10. ✅ **Side panel — quiz** pós-pomodoro: rodada de até 5 perguntas, 1min cada, auto-avanço, reveal de resposta, reinício automático do foco
+11. 🔲 **Lift state**: unificar Categorias, Perguntas e Pomodoros no App.tsx; implementar cascade delete; persistir answeredIds entre sessões
 12. 🔲 **Testes**: alarme com painel fechado; clicar notificação abre painel no quiz
 
 ## Checklist rápido de validação
