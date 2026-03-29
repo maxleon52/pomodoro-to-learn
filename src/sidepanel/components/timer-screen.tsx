@@ -1,4 +1,4 @@
-import { Flame, Settings2, ChevronLeft, ChevronRight, Play, Pause, Zap, RotateCcw, CheckCircle } from 'lucide-react'
+import { Flame, LogIn, ChevronLeft, ChevronRight, Play, Pause, Zap, RotateCcw, CheckCircle } from 'lucide-react'
 import './timer-screen.css'
 
 // Raio do círculo de progresso em pixels.
@@ -24,6 +24,8 @@ interface TimerScreenProps {
   questions: string[]      // perguntas ainda não respondidas (só o enunciado)
   isCompleted: boolean     // true quando todas as perguntas do pomodoro foram respondidas
   showConfirm: boolean     // quando true exibe o diálogo de confirmação de troca de pomodoro
+  pomodoroCount: number    // total de pomodoros criados (0 = empty state)
+  pomodoroIndex: number    // índice do pomodoro activo (base 0)
   onPlay: () => void           // play / pause
   onReset: () => void          // reinicia a sessão
   onFinish: () => void         // força o fim da sessão (vai para o quiz)
@@ -45,6 +47,8 @@ export default function TimerScreen({
   questions,
   isCompleted,
   showConfirm,
+  pomodoroCount,
+  pomodoroIndex,
   onPlay,
   onReset,
   onFinish,
@@ -75,8 +79,9 @@ export default function TimerScreen({
           <Flame size={22} color="#FF6B6B" fill="#FF6B6B" />
           <span className="brand-name">PomodoLearn</span>
         </div>
-        <button className="settings-btn" aria-label="Definições">
-          <Settings2 size={18} color="#6B7280" />
+        <button className="login-btn" aria-label="Entrar" disabled title="Em breve">
+          <LogIn size={16} color="#6B7280" />
+          <span>Entrar</span>
         </button>
       </div>
 
@@ -117,8 +122,8 @@ export default function TimerScreen({
           Os botões reset e finish só aparecem após o timer ter iniciado */}
       <div className={`controls${hasStarted ? ' controls--active' : ''}`}>
         {/* Navega para a categoria anterior */}
-        <button className="ctrl-btn ctrl-category" onClick={onPrevCategory} aria-label="Categoria anterior">
-          <ChevronLeft size={20} color="#6B7280" />
+        <button className="ctrl-btn ctrl-category" onClick={onPrevCategory} aria-label="Categoria anterior" disabled={pomodoroCount <= 1}>
+          <ChevronLeft size={20} color={pomodoroCount <= 1 ? '#D1D5DB' : '#6B7280'} />
         </button>
 
         {/* Reiniciar — visível apenas quando o timer já iniciou */}
@@ -143,10 +148,16 @@ export default function TimerScreen({
         )}
 
         {/* Navega para a categoria seguinte */}
-        <button className="ctrl-btn ctrl-category" onClick={onNextCategory} aria-label="Categoria seguinte">
-          <ChevronRight size={20} color="#6B7280" />
+        <button className="ctrl-btn ctrl-category" onClick={onNextCategory} aria-label="Categoria seguinte" disabled={pomodoroCount <= 1}>
+          <ChevronRight size={20} color={pomodoroCount <= 1 ? '#D1D5DB' : '#6B7280'} />
         </button>
       </div>
+
+      {pomodoroCount > 1 && (
+        <div className="pomodoro-indicator">
+          {pomodoroIndex + 1} / {pomodoroCount}
+        </div>
+      )}
 
       {/* Diálogo de confirmação — aparece por cima quando o utilizador tenta trocar
           de categoria com o timer em execução */}
@@ -169,37 +180,52 @@ export default function TimerScreen({
         </div>
       )}
 
-      {/* Card de pré-visualização da próxima pergunta de revisão
-          Por agora os dados são estáticos; serão ligados ao storage futuramente */}
+      {/* Card de pré-visualização / empty states */}
       <div className="review-card">
-        <div className="card-header">
-          <span className="card-label">Próxima revisão</span>
-          <div className="subject-tag">
-            <Zap size={12} color="#FF6B6B" fill="#FF6B6B" />
-            <span>{category}</span>
-          </div>
-        </div>
-        <div className="card-divider" />
-        {isCompleted ? (
-          <div className="card-completed">
-            <span className="card-completed-title">🎉 Pomodoro concluído!</span>
-            <span className="card-completed-sub">Todas as perguntas foram respondidas.</span>
-            <button className="card-restart-btn" onClick={onRestartPomodoro}>
-              Reiniciar ciclo
-            </button>
+        {pomodoroCount === 0 ? (
+          <div className="card-empty">
+            <span className="card-empty-icon">🍅</span>
+            <span className="card-empty-title">Nenhum pomodoro criado</span>
+            <span className="card-empty-sub">Crie um pomodoro na aba abaixo para começar.</span>
           </div>
         ) : (
-          <div className="card-content">
-            <p className="pomodoro-name">{pomodoroName}</p>
-            <ul className="question-list">
-              {questions.map((q, i) => (
-                <li key={i} className="question-list-item">
-                  <span className="question-list-index">{i + 1}</span>
-                  <span className="question-list-text">{q}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <>
+            <div className="card-header">
+              <span className="card-label">Próxima revisão</span>
+              <div className="subject-tag">
+                <Zap size={12} color="#FF6B6B" fill="#FF6B6B" />
+                <span>{category}</span>
+              </div>
+            </div>
+            <div className="card-divider" />
+            {isCompleted ? (
+              <div className="card-completed">
+                <span className="card-completed-title">🎉 Pomodoro concluído!</span>
+                <span className="card-completed-sub">Todas as perguntas foram respondidas.</span>
+                <button className="card-restart-btn" onClick={onRestartPomodoro}>
+                  Reiniciar ciclo
+                </button>
+              </div>
+            ) : questions.length === 0 ? (
+              <div className="card-empty">
+                <span className="card-empty-icon">📭</span>
+                <span className="card-empty-title">Sem perguntas</span>
+                <span className="card-empty-sub">Adicione perguntas a este pomodoro para ativar a revisão.</span>
+              </div>
+            ) : (
+              <div className="card-content">
+                <p className="pomodoro-name">{pomodoroName}</p>
+                <ul className="question-list">
+                  {questions.map((q, i) => (
+                    <li key={i} className="question-list-item">
+                      <span className="question-list-index">{i + 1}</span>
+                      <span className="question-list-text">{q}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>

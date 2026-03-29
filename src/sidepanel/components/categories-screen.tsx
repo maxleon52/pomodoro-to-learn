@@ -1,19 +1,7 @@
 import { useState } from 'react'
 import { Search, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import type { Category, Question } from '../../shared/types'
 import './categories-screen.css'
-
-interface Category {
-  id: string
-  name: string
-  color: string
-  emoji: string
-}
-
-const INITIAL_CATEGORIES: Category[] = [
-  { id: '1', name: 'Programação', color: '#FF6B6B', emoji: '💻' },
-  { id: '2', name: 'Inglês',      color: '#6366F1', emoji: '🌍' },
-  { id: '3', name: 'Entrevistas', color: '#22C55E', emoji: '🎓' },
-]
 
 const COLORS = [
   '#FF6B6B', '#FF9F40', '#FFD166', '#06D6A0', '#118AB2',
@@ -27,8 +15,15 @@ const EMOJIS = [
   '⚡', '🎵', '🏆', '🔑', '📝', '✨',
 ]
 
-export default function CategoriesScreen() {
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES)
+interface CategoriesScreenProps {
+  categories: Category[]
+  questions: Question[]
+  onAdd: (cat: Omit<Category, 'id'>) => void
+  onEdit: (cat: Category) => void
+  onDelete: (id: string) => void
+}
+
+export default function CategoriesScreen({ categories, questions, onAdd, onEdit, onDelete }: CategoriesScreenProps) {
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -61,28 +56,15 @@ export default function CategoriesScreen() {
   function handleSave() {
     if (!formName.trim()) return
     if (editingId) {
-      setCategories(prev =>
-        prev.map(c => c.id === editingId
-          ? { ...c, name: formName.trim(), color: formColor, emoji: formEmoji }
-          : c
-        )
-      )
+      onEdit({ id: editingId, name: formName.trim(), color: formColor, emoji: formEmoji })
     } else {
-      setCategories(prev => [
-        ...prev,
-        { id: Date.now().toString(), name: formName.trim(), color: formColor, emoji: formEmoji },
-      ])
+      onAdd({ name: formName.trim(), color: formColor, emoji: formEmoji })
     }
     setShowForm(false)
   }
 
-  function handleDelete(id: string) {
-    setConfirmDeleteId(id)
-  }
-
   function confirmDelete() {
-    // TODO: quando perguntas forem implementadas, reassociar para categoryId = 'default' aqui
-    setCategories(prev => prev.filter(c => c.id !== confirmDeleteId))
+    if (confirmDeleteId) onDelete(confirmDeleteId)
     setConfirmDeleteId(null)
   }
 
@@ -189,25 +171,28 @@ export default function CategoriesScreen() {
       </span>
 
       <div className="cat-list">
-        {filtered.map(cat => (
-          <div key={cat.id} className="cat-item">
-            <div className="cat-item-icon" style={{ background: cat.color }}>
-              <span>{cat.emoji}</span>
+        {filtered.map(cat => {
+          const count = questions.filter(q => q.categoryId === cat.id).length
+          return (
+            <div key={cat.id} className="cat-item">
+              <div className="cat-item-icon" style={{ background: cat.color }}>
+                <span>{cat.emoji}</span>
+              </div>
+              <div className="cat-item-text">
+                <span className="cat-item-name">{cat.name}</span>
+                <span className="cat-item-sub">{count} {count === 1 ? 'pergunta' : 'perguntas'}</span>
+              </div>
+              <div className="cat-item-actions">
+                <button className="cat-action-btn" onClick={() => openEdit(cat)}>
+                  <Pencil size={16} color="#9CA3AF" />
+                </button>
+                <button className="cat-action-btn" onClick={() => setConfirmDeleteId(cat.id)}>
+                  <Trash2 size={16} color="#FF6B6B" />
+                </button>
+              </div>
             </div>
-            <div className="cat-item-text">
-              <span className="cat-item-name">{cat.name}</span>
-              <span className="cat-item-sub">0 perguntas</span>
-            </div>
-            <div className="cat-item-actions">
-              <button className="cat-action-btn" onClick={() => openEdit(cat)}>
-                <Pencil size={16} color="#9CA3AF" />
-              </button>
-              <button className="cat-action-btn" onClick={() => handleDelete(cat.id)}>
-                <Trash2 size={16} color="#FF6B6B" />
-              </button>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {confirmDeleteId !== null && (() => {

@@ -1,68 +1,21 @@
 import { useState } from 'react'
 import { Search, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import type { Category, Question } from '../../shared/types'
 import './questions-screen.css'
-
-interface Category {
-  id: string
-  name: string
-  color: string
-  emoji: string
-}
-
-interface Question {
-  id: string
-  categoryId: string
-  question: string
-  options: [string, string, string, string]
-  correctAnswer: 'A' | 'B' | 'C' | 'D'
-}
-
-// TODO: receber do App.tsx quando o estado for elevado (lift state)
-const CATEGORIES: Category[] = [
-  { id: '1', name: 'Programação', color: '#FF6B6B', emoji: '💻' },
-  { id: '2', name: 'Inglês',      color: '#6366F1', emoji: '🌍' },
-  { id: '3', name: 'Entrevistas', color: '#22C55E', emoji: '🎓' },
-]
-
-const INITIAL_QUESTIONS: Question[] = [
-  {
-    id: '1',
-    categoryId: '1',
-    question: 'O que é uma closure em JavaScript?',
-    options: [
-      'Uma função com acesso ao escopo léxico externo',
-      'Um objeto que agrupa dados e comportamentos',
-      'Uma estrutura de loop assíncrono',
-      'Um tipo especial de array',
-    ],
-    correctAnswer: 'A',
-  },
-  {
-    id: '2',
-    categoryId: '2',
-    question: "What is the past tense of 'go'?",
-    options: ['Goed', 'Went', 'Gone', 'Going'],
-    correctAnswer: 'B',
-  },
-  {
-    id: '3',
-    categoryId: '3',
-    question: 'Qual a diferença entre TCP e UDP?',
-    options: [
-      'TCP é orientado a conexão; UDP é sem conexão',
-      'UDP é mais lento que TCP',
-      'TCP não garante entrega; UDP garante',
-      'Não há diferença prática',
-    ],
-    correctAnswer: 'A',
-  },
-]
 
 const LETTERS = ['A', 'B', 'C', 'D'] as const
 
-export default function QuestionsScreen() {
-  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS)
+interface QuestionsScreenProps {
+  categories: Category[]
+  questions: Question[]
+  onAdd: (q: Omit<Question, 'id'>) => void
+  onEdit: (q: Question) => void
+  onDelete: (id: string) => void
+}
+
+export default function QuestionsScreen({ categories, questions, onAdd, onEdit, onDelete }: QuestionsScreenProps) {
   const [search, setSearch] = useState('')
+  const [filterCategoryId, setFilterCategoryId] = useState<string | null>(null)
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
@@ -70,18 +23,22 @@ export default function QuestionsScreen() {
   const [formQuestion, setFormQuestion] = useState('')
   const [formOptions, setFormOptions] = useState<[string, string, string, string]>(['', '', '', ''])
   const [formCorrect, setFormCorrect] = useState<'A' | 'B' | 'C' | 'D'>('A')
-  const [formCategoryId, setFormCategoryId] = useState(CATEGORIES[0].id)
+  const [formCategoryId, setFormCategoryId] = useState(categories[0]?.id ?? '')
+  const [formDifficulty, setFormDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium')
 
-  const filtered = questions.filter(q =>
-    q.question.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = questions.filter(q => {
+    const matchesSearch = q.question.toLowerCase().includes(search.toLowerCase())
+    const matchesCategory = filterCategoryId ? q.categoryId === filterCategoryId : true
+    return matchesSearch && matchesCategory
+  })
 
   function openNew() {
     setEditingId(null)
     setFormQuestion('')
     setFormOptions(['', '', '', ''])
     setFormCorrect('A')
-    setFormCategoryId(CATEGORIES[0].id)
+    setFormCategoryId(categories[0]?.id ?? '')
+    setFormDifficulty('medium')
     setShowForm(true)
   }
 
@@ -91,39 +48,22 @@ export default function QuestionsScreen() {
     setFormOptions([...q.options] as [string, string, string, string])
     setFormCorrect(q.correctAnswer)
     setFormCategoryId(q.categoryId)
+    setFormDifficulty(q.difficulty ?? 'medium')
     setShowForm(true)
   }
 
   function handleSave() {
     if (!formQuestion.trim()) return
     if (editingId) {
-      setQuestions(prev =>
-        prev.map(q => q.id === editingId
-          ? { ...q, question: formQuestion.trim(), options: formOptions, correctAnswer: formCorrect, categoryId: formCategoryId }
-          : q
-        )
-      )
+      onEdit({ id: editingId, categoryId: formCategoryId, question: formQuestion.trim(), options: formOptions, correctAnswer: formCorrect, difficulty: formDifficulty })
     } else {
-      setQuestions(prev => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          categoryId: formCategoryId,
-          question: formQuestion.trim(),
-          options: formOptions,
-          correctAnswer: formCorrect,
-        },
-      ])
+      onAdd({ categoryId: formCategoryId, question: formQuestion.trim(), options: formOptions, correctAnswer: formCorrect, difficulty: formDifficulty })
     }
     setShowForm(false)
   }
 
-  function handleDelete(id: string) {
-    setConfirmDeleteId(id)
-  }
-
   function confirmDelete() {
-    setQuestions(prev => prev.filter(q => q.id !== confirmDeleteId))
+    if (confirmDeleteId) onDelete(confirmDeleteId)
     setConfirmDeleteId(null)
   }
 
@@ -134,20 +74,22 @@ export default function QuestionsScreen() {
   }
 
   function getCategoryById(id: string) {
-    return CATEGORIES.find(c => c.id === id)
+    return categories.find(c => c.id === id)
   }
 
   if (showForm) {
     return (
       <div className="q-screen">
-        <div className="q-topbar">
-          <button className="q-icon-btn" onClick={() => setShowForm(false)}>
-            <ArrowLeft size={22} color="#1A1A1A" />
-          </button>
-          <span className="q-topbar-title">
-            {editingId ? 'Editar Pergunta' : 'Nova Pergunta'}
-          </span>
-          <div className="q-icon-btn q-icon-btn--ghost" />
+        <div className="q-sticky-header">
+          <div className="q-topbar">
+            <button className="q-icon-btn" onClick={() => setShowForm(false)}>
+              <ArrowLeft size={22} color="#1A1A1A" />
+            </button>
+            <span className="q-topbar-title">
+              {editingId ? 'Editar Pergunta' : 'Nova Pergunta'}
+            </span>
+            <div className="q-icon-btn q-icon-btn--ghost" />
+          </div>
         </div>
 
         <div className="q-form">
@@ -155,12 +97,12 @@ export default function QuestionsScreen() {
             {/* Categoria */}
             <label className="q-field-label">Categoria</label>
             <div className="q-cat-row">
-              {CATEGORIES.map(cat => (
+              {categories.map(cat => (
                 <button
                   key={cat.id}
                   className={`q-cat-pill${formCategoryId === cat.id ? ' q-cat-pill--active' : ''}`}
                   style={formCategoryId === cat.id
-                    ? { background: '#FF6B6B', color: '#fff', borderColor: '#FF6B6B' }
+                    ? { background: cat.color, color: '#fff', borderColor: cat.color }
                     : {}
                   }
                   onClick={() => setFormCategoryId(cat.id)}
@@ -225,6 +167,20 @@ export default function QuestionsScreen() {
                 )
               })}
             </div>
+
+            {/* Dificuldade */}
+            <label className="q-field-label">Dificuldade</label>
+            <div className="q-diff-row">
+              {(['easy', 'medium', 'hard'] as const).map(d => (
+                <button
+                  key={d}
+                  className={`q-diff-btn q-diff-btn--${d}${formDifficulty === d ? ' q-diff-btn--active' : ''}`}
+                  onClick={() => setFormDifficulty(d)}
+                >
+                  {d === 'easy' ? 'Fácil' : d === 'medium' ? 'Médio' : 'Difícil'}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="q-actions">
@@ -247,47 +203,77 @@ export default function QuestionsScreen() {
 
   return (
     <div className="q-screen">
-      <div className="q-topbar">
-        <div className="q-icon-btn q-icon-btn--ghost" />
-        <span className="q-topbar-title">Perguntas</span>
-        <button className="q-plus-btn" onClick={openNew}>
-          <Plus size={18} color="#fff" />
-        </button>
+      {/* Cabeçalho fixo */}
+      <div className="q-sticky-header">
+        <div className="q-topbar">
+          <div className="q-icon-btn q-icon-btn--ghost" />
+          <span className="q-topbar-title">Perguntas</span>
+          <button className="q-plus-btn" onClick={openNew}>
+            <Plus size={18} color="#fff" />
+          </button>
+        </div>
+
+        <div className="q-search">
+          <Search size={16} color="#9CA3AF" />
+          <input
+            className="q-search-input"
+            placeholder="Buscar pergunta..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Filtro por categoria */}
+        {categories.length > 0 && (
+          <div className="q-filter-row">
+            {categories.map(cat => {
+              const active = filterCategoryId === cat.id
+              return (
+                <button
+                  key={cat.id}
+                  className={`q-filter-pill${active ? ' q-filter-pill--active' : ''}`}
+                  style={active ? { background: cat.color } : {}}
+                  onClick={() => setFilterCategoryId(active ? null : cat.id)}
+                >
+                  {cat.emoji} {cat.name}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        <span className="q-count-label">
+          {filtered.length} {filtered.length === 1 ? 'pergunta encontrada' : 'perguntas encontradas'}
+        </span>
       </div>
 
-      <div className="q-search">
-        <Search size={16} color="#9CA3AF" />
-        <input
-          className="q-search-input"
-          placeholder="Buscar pergunta..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-
-      <span className="q-count-label">
-        {filtered.length} {filtered.length === 1 ? 'pergunta encontrada' : 'perguntas encontradas'}
-      </span>
-
+      {/* Lista com scroll */}
       <div className="q-list">
         {filtered.map(q => {
           const cat = getCategoryById(q.categoryId)
           return (
             <div key={q.id} className="q-item">
               <div className="q-item-top">
-                {cat && (
-                  <span
-                    className="q-item-badge"
-                    style={{ background: cat.color + '22', color: cat.color }}
-                  >
-                    {cat.emoji} {cat.name}
-                  </span>
-                )}
+                <div className="q-item-badges">
+                  {cat && (
+                    <span
+                      className="q-item-badge"
+                      style={{ background: cat.color + '22', color: cat.color }}
+                    >
+                      {cat.emoji} {cat.name}
+                    </span>
+                  )}
+                  {q.difficulty && (
+                    <span className={`q-diff-badge q-diff-badge--${q.difficulty}`}>
+                      {q.difficulty === 'easy' ? 'Fácil' : q.difficulty === 'medium' ? 'Médio' : 'Difícil'}
+                    </span>
+                  )}
+                </div>
                 <div className="q-item-actions">
                   <button className="q-action-btn" onClick={() => openEdit(q)}>
                     <Pencil size={15} color="#9CA3AF" />
                   </button>
-                  <button className="q-action-btn" onClick={() => handleDelete(q.id)}>
+                  <button className="q-action-btn" onClick={() => setConfirmDeleteId(q.id)}>
                     <Trash2 size={15} color="#FF6B6B" />
                   </button>
                 </div>

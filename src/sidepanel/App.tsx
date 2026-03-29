@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import './styles/global.css'
 import TimerScreen from './components/timer-screen'
 import QuizScreen from './components/quiz-screen'
@@ -6,30 +6,31 @@ import CategoriesScreen from './components/categories-screen'
 import QuestionsScreen from './components/questions-screen'
 import PomodoroScreen from './components/pomodoro-screen'
 import BottomNav, { type Screen } from './components/bottom-nav'
-import type { TimerState, WorkerMessage } from '../shared/types'
+import ToastContainer, { type ToastData } from './components/toast'
+import type { TimerState, WorkerMessage, Category, Question, Pomodoro } from '../shared/types'
 
 // Duração padrão de uma sessão: 25 minutos em segundos
 const DEFAULT_DURATION = 25 * 60
 
-// Dados placeholder — serão unificados via lift state quando persistência for implementada
-const CATEGORIES = [
+// Dados iniciais — usados apenas no primeiro arranque (quando storage está vazio)
+const INITIAL_CATEGORIES: Category[] = [
   { id: '1', name: 'Programação', color: '#FF6B6B', emoji: '💻' },
   { id: '2', name: 'Inglês',      color: '#6366F1', emoji: '🌍' },
   { id: '3', name: 'Entrevistas', color: '#22C55E', emoji: '🎓' },
 ]
 
-const QUESTIONS = [
-  { id: '1', categoryId: '1', question: 'O que é uma closure em JavaScript?',       options: ['Tipo de variável global', 'Função com acesso ao escopo externo', 'Tipo de loop', 'Método de array']                         as [string,string,string,string], correctAnswer: 'B' as const },
-  { id: '2', categoryId: '2', question: "What is the past tense of 'go'?",          options: ['Goed', 'Went', 'Gone', 'Going']                                                                                              as [string,string,string,string], correctAnswer: 'B' as const },
-  { id: '3', categoryId: '3', question: 'Qual a diferença entre TCP e UDP?',        options: ['TCP é mais rápido', 'TCP garante entrega; UDP não', 'UDP é mais seguro', 'São protocolos de email']                          as [string,string,string,string], correctAnswer: 'B' as const },
-  { id: '4', categoryId: '1', question: 'O que é uma Promise em JavaScript?',       options: ['Função assíncrona', 'Objeto que representa valor futuro', 'Tipo de loop', 'Método de ordenação']                            as [string,string,string,string], correctAnswer: 'B' as const },
-  { id: '5', categoryId: '2', question: "How do you use 'despite' in a sentence?",  options: ['Despite I was tired', 'Despite being tired', 'Despite of being tired', 'Despite to be tired']                               as [string,string,string,string], correctAnswer: 'B' as const },
+const INITIAL_QUESTIONS: Question[] = [
+  { id: '1', categoryId: '1', question: 'O que é uma closure em JavaScript?',      options: ['Uma função com acesso ao escopo léxico externo', 'Um objeto que agrupa dados e comportamentos', 'Uma estrutura de loop assíncrono', 'Um tipo especial de array'],                  correctAnswer: 'A' },
+  { id: '2', categoryId: '2', question: "What is the past tense of 'go'?",         options: ['Goed', 'Went', 'Gone', 'Going'],                                                                                                                                               correctAnswer: 'B' },
+  { id: '3', categoryId: '3', question: 'Qual a diferença entre TCP e UDP?',       options: ['TCP é orientado a conexão; UDP é sem conexão', 'UDP é mais lento que TCP', 'TCP não garante entrega; UDP garante', 'Não há diferença prática'],                               correctAnswer: 'A' },
+  { id: '4', categoryId: '1', question: 'O que é uma Promise em JavaScript?',      options: ['Função assíncrona imediata', 'Objeto que representa valor futuro', 'Tipo de loop assíncrono', 'Método de ordenação de arrays'],                                              correctAnswer: 'B' },
+  { id: '5', categoryId: '2', question: "How do you use 'despite' in a sentence?", options: ['Despite I was tired', 'Despite being tired', 'Despite of being tired', 'Despite to be tired'],                                                                                correctAnswer: 'B' },
 ]
 
-const POMODOROS = [
-  { id: '1', name: 'Estudar Inglês',      categoryId: '2', questionIds: ['2', '5'] },
-  { id: '2', name: 'Treinar Entrevistas', categoryId: '3', questionIds: ['3'] },
-  { id: '3', name: 'Revisão Programação', categoryId: '1', questionIds: ['1', '4'] },
+const INITIAL_POMODOROS: Pomodoro[] = [
+  { id: '1', name: 'Estudar Inglês',      categoryId: '2', questionIds: ['2', '5'], duration: 25 },
+  { id: '2', name: 'Treinar Entrevistas', categoryId: '3', questionIds: ['3'],      duration: 25 },
+  { id: '3', name: 'Revisão Programação', categoryId: '1', questionIds: ['1', '4'], duration: 25 },
 ]
 
 // Envia uma mensagem ao service worker e aguarda a resposta com o estado actualizado
@@ -37,9 +38,7 @@ function sendToWorker(msg: WorkerMessage): Promise<TimerState> {
   return chrome.runtime.sendMessage(msg)
 }
 
-// Calcula os segundos restantes a partir do estado guardado:
-// - Se running: deriva do endTime em tempo real
-// - Se pausado: usa o timeLeft guardado no storage
+// Calcula os segundos restantes a partir do estado guardado
 function calcTimeLeft(state: TimerState): number {
   if (state.running && state.endTime) {
     return Math.max(0, Math.round((state.endTime - Date.now()) / 1000))
@@ -58,62 +57,117 @@ export default function App() {
   // Tela activa no bottom nav
   const [screen, setScreen] = useState<Screen>('timer')
 
-  // workerState: estado autoritativo vindo do service worker / storage
-  const [workerState, setWorkerState] = useState<TimerState>({
-    phase: 'idle',
-    endTime: null,
-    timeLeft: DEFAULT_DURATION,
-    running: false,
-  })
-
-  // timeLeft: segundos exibidos no ecrã — actualizado pelo intervalo abaixo
-  const [timeLeft, setTimeLeft] = useState(DEFAULT_DURATION)
-
-  // Referência ao intervalo de countdown para poder limpá-lo correctamente
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Índice do pomodoro actualmente seleccionado
+  // --- Dados da aplicação (fonte da verdade) ---
+  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES)
+  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS)
+  const [pomodoros, setPomodoros] = useState<Pomodoro[]>(INITIAL_POMODOROS)
   const [pomodoroIndex, setPomodoroIndex] = useState(0)
+  // Perguntas respondidas por pomodoro: { [pomodoroId]: string[] }
+  const [answeredIdsMap, setAnsweredIdsMap] = useState<Record<string, string[]>>({})
+  // Controla se o carregamento inicial do storage já terminou
+  const [dataLoaded, setDataLoaded] = useState(false)
 
-  // Quando não é null, guarda o índice pendente e mostra o diálogo de confirmação
+  // --- Toast ---
+  const [toasts, setToasts] = useState<ToastData[]>([])
+  const toastIdRef = useRef(0)
+  function showToast(message: string, type: 'success' | 'error' = 'success') {
+    const id = ++toastIdRef.current
+    setToasts(prev => [...prev, { id, message, type }])
+  }
+  function removeToast(id: number) {
+    setToasts(prev => prev.filter(t => t.id !== id))
+  }
+
+  // --- Estado do timer ---
+  const [workerState, setWorkerState] = useState<TimerState>({
+    phase: 'idle', endTime: null, timeLeft: DEFAULT_DURATION, running: false,
+  })
+  const [timeLeft, setTimeLeft] = useState(DEFAULT_DURATION)
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [pendingPomodoro, setPendingPomodoro] = useState<number | null>(null)
+  // Chave que força remount do QuizScreen ao iniciar nova rodada
+  const [roundKey, setRoundKey] = useState(0)
 
-  // IDs das perguntas já respondidas no ciclo actual do pomodoro
-  const [answeredIds, setAnsweredIds] = useState<string[]>([])
+  // --- Valores derivados do pomodoro activo ---
+  const safeIndex = pomodoros.length > 0 ? Math.min(pomodoroIndex, pomodoros.length - 1) : 0
+  const activePomodoro = pomodoros[safeIndex]
+  // Duração da sessão em segundos — usa a duração do pomodoro activo ou o padrão
+  const sessionDuration = (activePomodoro?.duration ?? 25) * 60
+  const activeCategory = activePomodoro
+    ? (categories.find(c => c.id === activePomodoro.categoryId) ?? { id: '', name: 'Sem categoria', color: '#9CA3AF', emoji: '📋' })
+    : { id: '', name: 'Sem categoria', color: '#9CA3AF', emoji: '📋' }
 
-  // Dados derivados do pomodoro activo
-  const activePomodoro = POMODOROS[pomodoroIndex]
-  const activeCategory = CATEGORIES.find(c => c.id === activePomodoro.categoryId)!
+  const answeredIds: string[] = activePomodoro ? (answeredIdsMap[activePomodoro.id] ?? []) : []
 
-  // Perguntas do pomodoro ainda não respondidas (com dados completos para o quiz)
-  const unansweredFull = activePomodoro.questionIds
-    .map(id => QUESTIONS.find(q => q.id === id)!)
-    .filter(q => q && !answeredIds.includes(q.id))
+  // Perguntas ainda não respondidas — recalculado a cada render (fonte da verdade para isCompleted)
+  const unansweredFull = activePomodoro
+    ? activePomodoro.questionIds
+        .map(id => questions.find(q => q.id === id))
+        .filter((q): q is Question => !!q && !answeredIds.includes(q.id))
+    : []
 
-  // Até 5 perguntas para a rodada actual
-  const questionsForRound = unansweredFull.slice(0, 5)
-
-  // Todas as perguntas foram respondidas neste ciclo
-  const isCompleted = activePomodoro.questionIds.length > 0 && unansweredFull.length === 0
-
-  // Textos das perguntas restantes — exibidos no card do timer
+  const isCompleted = !!activePomodoro && activePomodoro.questionIds.length > 0 && unansweredFull.length === 0
   const remainingQuestionTexts = unansweredFull.map(q => q.question)
 
-  // Ao montar o side panel: pede o estado actual ao worker para sincronizar a UI
-  // (o painel pode ter sido fechado e reaberto com o timer a correr)
+  // Ref para ler answeredIdsMap dentro do useMemo sem o tornar dependência
+  // (queremos congelar as perguntas no início de cada rodada, não a cada resposta)
+  const answeredIdsMapRef = useRef(answeredIdsMap)
+  answeredIdsMapRef.current = answeredIdsMap
+
+  // Perguntas congeladas para a rodada actual — só recalcula quando roundKey ou a fase mudam,
+  // NÃO quando answeredIdsMap muda (evita encolhimento do array mid-round → tela em branco)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const roundQuestions = useMemo(() => {
+    if (workerState.phase !== 'quiz_pending') return []
+    const pomId = activePomodoro?.id ?? ''
+    const answered = answeredIdsMapRef.current[pomId] ?? []
+    return (activePomodoro?.questionIds ?? [])
+      .map(id => questions.find(q => q.id === id))
+      .filter((q): q is Question => !!q && !answered.includes(q.id))
+      .slice(0, 5)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roundKey, workerState.phase, activePomodoro?.id, questions])
+
+  // Carrega dados do chrome.storage.local no arranque
   useEffect(() => {
-    sendToWorker({ type: 'GET_STATE' }).then((state) => {
+    chrome.storage.local.get('appData').then(result => {
+      if (result.appData) {
+        const data = result.appData as {
+          categories?: Category[]
+          questions?: Question[]
+          pomodoros?: Pomodoro[]
+          pomodoroIndex?: number
+          answeredIds?: Record<string, string[]>
+        }
+        if (Array.isArray(data.categories) && data.categories.length) setCategories(data.categories)
+        if (Array.isArray(data.questions) && data.questions.length) setQuestions(data.questions)
+        if (Array.isArray(data.pomodoros) && data.pomodoros.length) setPomodoros(data.pomodoros)
+        if (typeof data.pomodoroIndex === 'number') setPomodoroIndex(data.pomodoroIndex)
+        if (data.answeredIds && typeof data.answeredIds === 'object') setAnsweredIdsMap(data.answeredIds)
+      }
+      setDataLoaded(true)
+    })
+  }, [])
+
+  // Persiste dados sempre que mudam (só após o carregamento inicial)
+  useEffect(() => {
+    if (!dataLoaded) return
+    chrome.storage.local.set({
+      appData: { categories, questions, pomodoros, pomodoroIndex, answeredIds: answeredIdsMap },
+    })
+  }, [dataLoaded, categories, questions, pomodoros, pomodoroIndex, answeredIdsMap])
+
+  // Ao montar: sincroniza UI com o estado do worker
+  useEffect(() => {
+    sendToWorker({ type: 'GET_STATE' }).then(state => {
       setWorkerState(state)
       setTimeLeft(calcTimeLeft(state))
     })
   }, [])
 
   // Ouve mudanças no storage — reagindo a eventos do worker (ex: alarme disparou)
-  // Isto permite que a UI actualize mesmo quando a mensagem vem do alarm handler
   useEffect(() => {
-    function onStorageChange(
-      changes: Record<string, chrome.storage.StorageChange>
-    ) {
+    function onStorageChange(changes: Record<string, chrome.storage.StorageChange>) {
       if (changes.timerState) {
         const state = changes.timerState.newValue as TimerState
         setWorkerState(state)
@@ -124,124 +178,181 @@ export default function App() {
     return () => chrome.storage.onChanged.removeListener(onStorageChange)
   }, [])
 
-  // Countdown local: quando o timer está a correr, recalcula timeLeft cada segundo
-  // Não depende do worker para cada tick — deriva directamente do endTime guardado
+  // Countdown local: recalcula timeLeft cada segundo enquanto o timer corre
   useEffect(() => {
     if (workerState.running && workerState.endTime) {
       intervalRef.current = setInterval(() => {
-        const left = Math.max(
-          0,
-          Math.round((workerState.endTime! - Date.now()) / 1000)
-        )
+        const left = Math.max(0, Math.round((workerState.endTime! - Date.now()) / 1000))
         setTimeLeft(left)
       }, 1000)
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current)
     }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current)
-    }
+    return () => { if (intervalRef.current) clearInterval(intervalRef.current) }
   }, [workerState.running, workerState.endTime])
 
-  // Play/Pause: comportamento depende da fase actual
+  // Quando todas as perguntas foram respondidas e o quiz dispara, reseta para idle
+  useEffect(() => {
+    if (workerState.phase === 'quiz_pending' && isCompleted) {
+      sendToWorker({ type: 'RESET' }).then(state => {
+        setWorkerState(state)
+        setTimeLeft(sessionDuration)
+      })
+    }
+  }, [workerState.phase, isCompleted])
+
+  // --- Handlers do timer ---
+
   async function handlePlay() {
     let state: TimerState
     if (workerState.phase === 'idle') {
-      // Primeira vez — inicia com a duração padrão
-      state = await sendToWorker({ type: 'START', duration: DEFAULT_DURATION })
+      state = await sendToWorker({ type: 'START', duration: sessionDuration })
     } else if (workerState.running) {
       state = await sendToWorker({ type: 'PAUSE' })
     } else {
-      // Estava pausado — retoma de onde parou
       state = await sendToWorker({ type: 'RESUME' })
     }
     setWorkerState(state)
     setTimeLeft(calcTimeLeft(state))
   }
 
-  // Reinicia a sessão completamente
   async function handleReset() {
     const state = await sendToWorker({ type: 'RESET' })
     setWorkerState(state)
-    setTimeLeft(DEFAULT_DURATION)
+    setTimeLeft(sessionDuration)
   }
 
-  // Força o fim da sessão — activa quiz_pending imediatamente
   async function handleFinish() {
     const state = await sendToWorker({ type: 'SKIP' })
     setWorkerState(state)
     setTimeLeft(0)
   }
 
-  // Quando o pomodoro está completo e o quiz dispara, reseta para idle automaticamente
-  useEffect(() => {
-    if (workerState.phase === 'quiz_pending' && isCompleted) {
-      sendToWorker({ type: 'RESET' }).then(state => {
-        setWorkerState(state)
-        setTimeLeft(DEFAULT_DURATION)
-      })
-    }
-  }, [workerState.phase, isCompleted])
-
-  // Navega para o pomodoro anterior ou seguinte no array circular.
-  // Se o timer estiver a correr, guarda o índice pendente e exibe o diálogo de confirmação.
+  // Navega entre pomodoros; se timer activo, guarda pendente e pede confirmação
   function switchPomodoro(next: number) {
     if (workerState.running) {
       setPendingPomodoro(next)
     } else {
+      const targetId = pomodoros[next]?.id
+      if (targetId) setAnsweredIdsMap(prev => ({ ...prev, [targetId]: [] }))
       setPomodoroIndex(next)
-      setAnsweredIds([])
     }
   }
 
   function handlePrevCategory() {
-    switchPomodoro((pomodoroIndex - 1 + POMODOROS.length) % POMODOROS.length)
+    if (pomodoros.length <= 1) return
+    switchPomodoro((safeIndex - 1 + pomodoros.length) % pomodoros.length)
   }
 
   function handleNextCategory() {
-    switchPomodoro((pomodoroIndex + 1) % POMODOROS.length)
+    if (pomodoros.length <= 1) return
+    switchPomodoro((safeIndex + 1) % pomodoros.length)
   }
 
-  // Utilizador confirmou a troca — reinicia o timer e muda de pomodoro
   async function handleConfirmSwitch() {
     if (pendingPomodoro === null) return
+    const targetId = pomodoros[pendingPomodoro]?.id
     await handleReset()
     setPomodoroIndex(pendingPomodoro)
-    setAnsweredIds([])
+    if (targetId) setAnsweredIdsMap(prev => ({ ...prev, [targetId]: [] }))
     setPendingPomodoro(null)
   }
 
-  // Utilizador cancelou — descarta a mudança pendente
   function handleCancelSwitch() {
     setPendingPomodoro(null)
   }
 
-  // Utilizador respondeu uma pergunta — marca como respondida e inicia nova sessão de foco
-  async function handleAnswered(questionId: string) {
-    setAnsweredIds(prev => [...prev, questionId])
-    const state = await sendToWorker({ type: 'START', duration: DEFAULT_DURATION })
-    setWorkerState(state)
-    setTimeLeft(DEFAULT_DURATION)
+  function handleAnswered(questionId: string) {
+    if (!activePomodoro) return
+    const pomId = activePomodoro.id
+    setAnsweredIdsMap(prev => ({ ...prev, [pomId]: [...(prev[pomId] ?? []), questionId] }))
+    // Não inicia novo timer — o quiz avança internamente para a próxima pergunta
   }
 
-  // Rodada encerrou sem resposta (todas as perguntas expiraram) — reinicia o foco
   async function handleRoundEnd() {
-    const state = await sendToWorker({ type: 'START', duration: DEFAULT_DURATION })
+    // Rodada terminada: inicia novo timer de 25min e prepara a próxima rodada
+    // Quando o timer acabar e fase virar quiz_pending, o useMemo recomputa roundQuestions
+    // com as perguntas restantes (já excluindo as respondidas nesta rodada)
+    setRoundKey(prev => prev + 1)
+    const state = await sendToWorker({ type: 'START', duration: sessionDuration })
     setWorkerState(state)
-    setTimeLeft(DEFAULT_DURATION)
+    setTimeLeft(sessionDuration)
   }
 
-  // Reinicia o progresso do pomodoro (reseta perguntas respondidas)
   function handleRestartPomodoro() {
-    setAnsweredIds([])
+    if (!activePomodoro) return
+    const pomId = activePomodoro.id
+    setAnsweredIdsMap(prev => ({ ...prev, [pomId]: [] }))
+  }
+
+  // --- CRUD: Categorias ---
+
+  function handleAddCategory(cat: Omit<Category, 'id'>) {
+    setCategories(prev => [...prev, { ...cat, id: Date.now().toString() }])
+    showToast('Categoria criada')
+  }
+
+  function handleEditCategory(cat: Category) {
+    setCategories(prev => prev.map(c => c.id === cat.id ? cat : c))
+    showToast('Categoria atualizada')
+  }
+
+  function handleDeleteCategory(id: string) {
+    setCategories(prev => prev.filter(c => c.id !== id))
+    setQuestions(prev => prev.map(q => q.categoryId === id ? { ...q, categoryId: '' } : q))
+    showToast('Categoria excluída')
+  }
+
+  // --- CRUD: Perguntas ---
+
+  function handleAddQuestion(q: Omit<Question, 'id'>) {
+    setQuestions(prev => [...prev, { ...q, id: Date.now().toString() }])
+    showToast('Pergunta criada')
+  }
+
+  function handleEditQuestion(q: Question) {
+    setQuestions(prev => prev.map(x => x.id === q.id ? q : x))
+    showToast('Pergunta atualizada')
+  }
+
+  function handleDeleteQuestion(id: string) {
+    setQuestions(prev => prev.filter(q => q.id !== id))
+    setPomodoros(prev => prev.map(p => ({ ...p, questionIds: p.questionIds.filter(qid => qid !== id) })))
+    showToast('Pergunta excluída')
+  }
+
+  // --- CRUD: Pomodoros ---
+
+  function handleAddPomodoro(p: Omit<Pomodoro, 'id'>) {
+    setPomodoros(prev => [...prev, { ...p, id: Date.now().toString() }])
+    showToast('Pomodoro criado')
+  }
+
+  function handleEditPomodoro(p: Pomodoro) {
+    setPomodoros(prev => prev.map(x => x.id === p.id ? p : x))
+    showToast('Pomodoro atualizado')
+  }
+
+  function handleDeletePomodoro(id: string) {
+    const currentActiveId = pomodoros[safeIndex]?.id
+    const nextPomodoros = pomodoros.filter(p => p.id !== id)
+    setPomodoros(nextPomodoros)
+    if (currentActiveId !== id) {
+      const newIdx = nextPomodoros.findIndex(p => p.id === currentActiveId)
+      setPomodoroIndex(Math.max(0, newIdx))
+    } else {
+      setPomodoroIndex(0)
+    }
+    showToast('Pomodoro excluído')
   }
 
   function renderScreen() {
     // Quiz sobrepõe qualquer tela quando há perguntas pendentes na rodada
-    if (workerState.phase === 'quiz_pending' && !isCompleted && questionsForRound.length > 0) {
+    if (workerState.phase === 'quiz_pending' && !isCompleted && roundQuestions.length > 0) {
       return (
         <QuizScreen
-          questions={questionsForRound}
+          key={roundKey}
+          questions={roundQuestions}
           category={activeCategory.name}
           onAnswered={handleAnswered}
           onRoundEnd={handleRoundEnd}
@@ -251,24 +362,51 @@ export default function App() {
 
     switch (screen) {
       case 'categories':
-        return <CategoriesScreen />
+        return (
+          <CategoriesScreen
+            categories={categories}
+            questions={questions}
+            onAdd={handleAddCategory}
+            onEdit={handleEditCategory}
+            onDelete={handleDeleteCategory}
+          />
+        )
       case 'questions':
-        return <QuestionsScreen />
+        return (
+          <QuestionsScreen
+            categories={categories}
+            questions={questions}
+            onAdd={handleAddQuestion}
+            onEdit={handleEditQuestion}
+            onDelete={handleDeleteQuestion}
+          />
+        )
       case 'pomodoro':
-        return <PomodoroScreen />
+        return (
+          <PomodoroScreen
+            categories={categories}
+            questions={questions}
+            pomodoros={pomodoros}
+            onAdd={handleAddPomodoro}
+            onEdit={handleEditPomodoro}
+            onDelete={handleDeletePomodoro}
+          />
+        )
       default:
         return (
           <TimerScreen
             timeLeft={timeLeft}
-            totalTime={DEFAULT_DURATION}
+            totalTime={sessionDuration}
             isRunning={workerState.running}
             phase={phaseLabel(workerState)}
             hasStarted={workerState.phase !== 'idle'}
             category={activeCategory.name}
-            pomodoroName={activePomodoro.name}
+            pomodoroName={activePomodoro?.name ?? ''}
             questions={remainingQuestionTexts}
             isCompleted={isCompleted}
             showConfirm={pendingPomodoro !== null}
+            pomodoroCount={pomodoros.length}
+            pomodoroIndex={safeIndex}
             onPlay={handlePlay}
             onReset={handleReset}
             onFinish={handleFinish}
@@ -286,6 +424,7 @@ export default function App() {
     <div className="app-shell">
       <div className="app-content">{renderScreen()}</div>
       <BottomNav active={screen} onChange={setScreen} />
+      <ToastContainer toasts={toasts} onDone={removeToast} />
     </div>
   )
 }

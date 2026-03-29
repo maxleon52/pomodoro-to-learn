@@ -27,14 +27,21 @@
   color: #1a1a1a;
 }
 
-.quiz-settings-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 19px;
-  background: #f6f7f8;
+.quiz-login-btn {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  background: #F6F7F8;
+  border: 1.5px solid #E5E7EB;
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B7280;
+  cursor: not-allowed;
+  font-family: inherit;
+  opacity: 0.6;
 }
 
 /* Mini row — sessão encerrada */

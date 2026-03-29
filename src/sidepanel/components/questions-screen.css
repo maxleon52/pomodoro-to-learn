@@ -1,11 +1,9 @@
 .q-screen {
-  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 16px 20px 24px;
-  flex: 1;
-  overflow-y: auto;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
 }
 
 /* ── Top bar ── */
@@ -54,6 +52,16 @@
   flex-shrink: 0;
 }
 
+/* ── Sticky header (topbar + search + filters + count) ── */
+.q-sticky-header {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px 10px;
+  background: #fff;
+}
+
 /* ── Search ── */
 .q-search {
   display: flex;
@@ -79,6 +87,43 @@
   color: #9CA3AF;
 }
 
+/* ── Category filter ── */
+.q-filter-row {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+
+.q-filter-row::-webkit-scrollbar {
+  display: none;
+}
+
+.q-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  border: 1.5px solid #E5E7EB;
+  background: #FFFFFF;
+  color: #6B7280;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: border-color 0.15s;
+}
+
+.q-filter-pill--active {
+  color: #fff;
+  border-color: transparent;
+}
+
 /* ── Count ── */
 .q-count-label {
   font-size: 12px;
@@ -86,8 +131,11 @@
   font-weight: 500;
 }
 
-/* ── List ── */
+/* ── Scrollable list ── */
 .q-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -107,6 +155,13 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+}
+
+.q-item-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
 .q-item-badge {
@@ -157,6 +212,7 @@
   gap: 16px;
   flex: 1;
   overflow-y: auto;
+  padding: 0 20px 24px;
 }
 
 .q-card {
@@ -179,7 +235,7 @@
   margin-top: 0;
 }
 
-/* ── Category pills ── */
+/* ── Category pills (form) ── */
 .q-cat-row {
   display: flex;
   flex-wrap: wrap;
@@ -263,6 +319,45 @@
   padding: 0 10px;
 }
 
+/* ── Difficulty selector (form) ── */
+.q-diff-row {
+  display: flex;
+  gap: 6px;
+}
+
+.q-diff-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: 9999px;
+  border: 1.5px solid #E5E7EB;
+  background: #FFFFFF;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  color: #6B7280;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.q-diff-btn--easy.q-diff-btn--active   { background: #22C55E; color: #fff; border-color: #22C55E; }
+.q-diff-btn--medium.q-diff-btn--active { background: #F59E0B; color: #fff; border-color: #F59E0B; }
+.q-diff-btn--hard.q-diff-btn--active   { background: #EF4444; color: #fff; border-color: #EF4444; }
+
+/* ── Difficulty badge (list) ── */
+.q-diff-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  letter-spacing: 0.02em;
+}
+
+.q-diff-badge--easy   { background: #DCFCE7; color: #16A34A; }
+.q-diff-badge--medium { background: #FEF3C7; color: #D97706; }
+.q-diff-badge--hard   { background: #FEE2E2; color: #DC2626; }
+
 /* ── Correct answer selector ── */
 .q-correct-row {
   display: flex;
@@ -287,6 +382,7 @@
 .q-actions {
   display: flex;
   gap: 10px;
+  flex-shrink: 0;
 }
 
 .q-btn-cancel,

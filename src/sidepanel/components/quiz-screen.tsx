@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Flame, Settings2, Send, CircleCheck, Zap } from 'lucide-react'
+import { Flame, LogIn, Send, CircleCheck, Zap } from 'lucide-react'
 import './quiz-screen.css'
 
 type Answer = 'A' | 'B' | 'C' | 'D'
@@ -72,6 +72,13 @@ export default function QuizScreen({ questions, category, onAnswered, onRoundEnd
     if (!quiz.selected) return
     if (quiz.confirmed) {
       onAnsweredRef.current(currentQuestion.id)
+      // Avança para a próxima pergunta da rodada ou encerra se for a última
+      const next = quiz.currentIndex + 1
+      if (next < questionsLenRef.current) {
+        setQuiz({ currentIndex: next, selected: null, confirmed: false, timeLeft: QUESTION_TIME })
+      } else {
+        onRoundEndRef.current()
+      }
       return
     }
     setQuiz(prev => ({ ...prev, confirmed: true }))
@@ -102,8 +109,9 @@ export default function QuizScreen({ questions, category, onAnswered, onRoundEnd
           <Flame size={22} color="#FF6B6B" fill="#FF6B6B" />
           <span className="quiz-brand-name">PomodoLearn</span>
         </div>
-        <button className="quiz-settings-btn" aria-label="Definições">
-          <Settings2 size={18} color="#6B7280" />
+        <button className="quiz-login-btn" aria-label="Entrar" disabled title="Em breve">
+          <LogIn size={16} color="#6B7280" />
+          <span>Entrar</span>
         </button>
       </div>
 

@@ -1,6 +1,31 @@
 // Fases do ciclo Pomodoro
 export type Phase = 'idle' | 'focusing' | 'quiz_pending'
 
+// Entidades da aplicação
+export interface Category {
+  id: string
+  name: string
+  color: string
+  emoji: string
+}
+
+export interface Question {
+  id: string
+  categoryId: string
+  question: string
+  options: [string, string, string, string]
+  correctAnswer: 'A' | 'B' | 'C' | 'D'
+  difficulty?: 'easy' | 'medium' | 'hard'
+}
+
+export interface Pomodoro {
+  id: string
+  name: string
+  categoryId: string
+  questionIds: string[]
+  duration: number  // minutos (mínimo 5, incremento de 5); default 25
+}
+
 // Estado do timer — persiste em chrome.storage.local e é a fonte da verdade
 export interface TimerState {
   phase: Phase

@@ -1,65 +1,34 @@
 import { useState } from 'react'
 import { Search, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react'
+import type { Category, Question, Pomodoro } from '../../shared/types'
 import './pomodoro-screen.css'
 
-interface Category {
-  id: string
-  name: string
-  color: string
-  emoji: string
+interface PomodoroScreenProps {
+  categories: Category[]
+  questions: Question[]
+  pomodoros: Pomodoro[]
+  onAdd: (p: Omit<Pomodoro, 'id'>) => void
+  onEdit: (p: Pomodoro) => void
+  onDelete: (id: string) => void
 }
 
-interface Question {
-  id: string
-  categoryId: string
-  question: string
-}
-
-interface Pomodoro {
-  id: string
-  name: string
-  categoryId: string
-  questionIds: string[]
-}
-
-// TODO: receber do App.tsx quando o estado for elevado (lift state)
-const CATEGORIES: Category[] = [
-  { id: '1', name: 'Programação', color: '#FF6B6B', emoji: '💻' },
-  { id: '2', name: 'Inglês',      color: '#6366F1', emoji: '🌍' },
-  { id: '3', name: 'Entrevistas', color: '#22C55E', emoji: '🎓' },
-]
-
-const ALL_QUESTIONS: Question[] = [
-  { id: '1', categoryId: '1', question: 'O que é uma closure em JavaScript?' },
-  { id: '2', categoryId: '2', question: "What is the past tense of 'go'?" },
-  { id: '3', categoryId: '3', question: 'Qual a diferença entre TCP e UDP?' },
-  { id: '4', categoryId: '1', question: 'O que é uma Promise em JavaScript?' },
-  { id: '5', categoryId: '2', question: "How do you use 'despite' in a sentence?" },
-]
-
-const INITIAL_POMODOROS: Pomodoro[] = [
-  { id: '1', name: 'Estudar Inglês',       categoryId: '2', questionIds: ['2', '5'] },
-  { id: '2', name: 'Treinar Entrevistas',  categoryId: '3', questionIds: ['3'] },
-  { id: '3', name: 'Revisão Programação',  categoryId: '1', questionIds: ['1', '4'] },
-]
-
-export default function PomodoroScreen() {
-  const [pomodoros, setPomodoros] = useState<Pomodoro[]>(INITIAL_POMODOROS)
+export default function PomodoroScreen({ categories, questions, pomodoros, onAdd, onEdit, onDelete }: PomodoroScreenProps) {
   const [search, setSearch] = useState('')
   const [showForm, setShowForm] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
   const [formName, setFormName] = useState('')
-  const [formCategoryId, setFormCategoryId] = useState(CATEGORIES[0].id)
+  const [formCategoryId, setFormCategoryId] = useState(categories[0]?.id ?? '')
   const [formQuestionIds, setFormQuestionIds] = useState<string[]>([])
   const [formSearch, setFormSearch] = useState('')
+  const [formDuration, setFormDuration] = useState(25)
 
   const filtered = pomodoros.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())
   )
 
-  const formQuestions = ALL_QUESTIONS.filter(
+  const formQuestions = questions.filter(
     q => q.categoryId === formCategoryId &&
          q.question.toLowerCase().includes(formSearch.toLowerCase())
   )
@@ -67,9 +36,10 @@ export default function PomodoroScreen() {
   function openNew() {
     setEditingId(null)
     setFormName('')
-    setFormCategoryId(CATEGORIES[0].id)
+    setFormCategoryId(categories[0]?.id ?? '')
     setFormQuestionIds([])
     setFormSearch('')
+    setFormDuration(25)
     setShowForm(true)
   }
 
@@ -79,33 +49,22 @@ export default function PomodoroScreen() {
     setFormCategoryId(p.categoryId)
     setFormQuestionIds([...p.questionIds])
     setFormSearch('')
+    setFormDuration(p.duration ?? 25)
     setShowForm(true)
   }
 
   function handleSave() {
     if (!formName.trim()) return
     if (editingId) {
-      setPomodoros(prev =>
-        prev.map(p => p.id === editingId
-          ? { ...p, name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds }
-          : p
-        )
-      )
+      onEdit({ id: editingId, name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds, duration: formDuration })
     } else {
-      setPomodoros(prev => [
-        ...prev,
-        { id: Date.now().toString(), name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds },
-      ])
+      onAdd({ name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds, duration: formDuration })
     }
     setShowForm(false)
   }
 
-  function handleDelete(id: string) {
-    setConfirmDeleteId(id)
-  }
-
   function confirmDelete() {
-    setPomodoros(prev => prev.filter(p => p.id !== confirmDeleteId))
+    if (confirmDeleteId) onDelete(confirmDeleteId)
     setConfirmDeleteId(null)
   }
 
@@ -132,7 +91,7 @@ export default function PomodoroScreen() {
   }
 
   function getCategoryById(id: string) {
-    return CATEGORIES.find(c => c.id === id)
+    return categories.find(c => c.id === id)
   }
 
   if (showForm) {
@@ -141,7 +100,7 @@ export default function PomodoroScreen() {
       formQuestions.every(q => formQuestionIds.includes(q.id))
 
     return (
-      <div className="pm-screen">
+      <div className="pm-screen pm-screen--form">
         <div className="pm-topbar">
           <button className="pm-icon-btn" onClick={() => setShowForm(false)}>
             <ArrowLeft size={22} color="#1A1A1A" />
@@ -168,7 +127,7 @@ export default function PomodoroScreen() {
             {/* Categoria */}
             <label className="pm-field-label">Categoria</label>
             <div className="pm-cat-row">
-              {CATEGORIES.map(cat => (
+              {categories.map(cat => (
                 <button
                   key={cat.id}
                   className={`pm-cat-pill${formCategoryId === cat.id ? ' pm-cat-pill--active' : ''}`}
@@ -177,6 +136,25 @@ export default function PomodoroScreen() {
                   {cat.emoji} {cat.name}
                 </button>
               ))}
+            </div>
+
+            {/* Duração */}
+            <label className="pm-field-label">Duração da sessão</label>
+            <div className="pm-duration-row">
+              <button
+                className="pm-duration-btn"
+                onClick={() => setFormDuration(prev => Math.max(5, prev - 5))}
+                disabled={formDuration <= 5}
+              >
+                −
+              </button>
+              <span className="pm-duration-value">{formDuration} min</span>
+              <button
+                className="pm-duration-btn"
+                onClick={() => setFormDuration(prev => prev + 5)}
+              >
+                +
+              </button>
             </div>
           </div>
 
@@ -227,7 +205,7 @@ export default function PomodoroScreen() {
             <button
               className="pm-btn-add"
               onClick={handleSave}
-              disabled={!formName.trim()}
+              disabled={!formName.trim() || formQuestionIds.length === 0}
             >
               {editingId ? 'Salvar' : 'Adicionar'}
             </button>
@@ -277,7 +255,7 @@ export default function PomodoroScreen() {
                 <button className="pm-action-btn" onClick={() => openEdit(p)}>
                   <Pencil size={16} color="#9CA3AF" />
                 </button>
-                <button className="pm-action-btn" onClick={() => handleDelete(p.id)}>
+                <button className="pm-action-btn" onClick={() => setConfirmDeleteId(p.id)}>
                   <Trash2 size={16} color="#FF6B6B" />
                 </button>
               </div>
