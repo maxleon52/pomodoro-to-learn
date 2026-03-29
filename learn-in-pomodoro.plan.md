@@ -35,11 +35,20 @@ todos:
   - id: quiz-ui
     content: "Tela Quiz (pós-pomodoro): rodada de até 5 perguntas não respondidas, 1min por pergunta. Expirou sem resposta → avança automaticamente. Respondeu → revela correto/errado → inicia próxima sessão de 25min automaticamente. Progresso rastreado em answeredIds; card do timer mostra perguntas restantes; quando todas respondidas mostra 'Pomodoro concluído' + botão 'Reiniciar ciclo'. Trocar pomodoro reseta o progresso."
     status: done
+  - id: lift-state
+    content: "Lift state para App.tsx; persistência em chrome.storage.local (categories, questions, pomodoros, answeredIdsMap); cascade delete."
+    status: done
+  - id: ux-polish
+    content: "Campo difficulty nas perguntas (easy/medium/hard); empty states no timer (sem pomodoro, sem perguntas); botão Login desabilitado; toasts de feedback CRUD; indicador de posição entre pomodoros; regra de negócio: pomodoro requer ≥1 pergunta."
+    status: done
   - id: quiz-focused-mode
     content: "Modo Focado: sessão de quiz sem pomodoro, com filtro por dificuldade. Acessível a partir do menu."
     status: future
+  - id: publish-store
+    content: "Publicar na Chrome Web Store: criar conta de developer ($5 taxa única), empacotar dist/ como .zip, preencher ficha da store (descrição, screenshots, ícones 128px), submeter para revisão."
+    status: pending
   - id: qa-background
-    content: Testar alarme com painel fechado (ícone/browser aberto); reabrir painel e confirmar estado; inspecionar worker.
+    content: "⚠️ CRÍTICO — Testar alarme com painel fechado: (1) iniciar timer, (2) fechar o side panel, (3) aguardar fim da sessão, (4) confirmar que a notificação aparece, (5) clicar na notificação e confirmar que o side panel reabre no quiz. Usar DevTools do service worker para simular timer de 30s sem esperar 25min."
     status: pending
 isProject: false
 ---
@@ -158,12 +167,20 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 8. ✅ **Tela Perguntas**: CRUD de flashcards múltipla escolha (A/B/C/D); filtro por categoria
 9. ✅ **Tela Pomodoro**: CRUD; seleção de perguntas por categoria; "Selecionar todas"
 10. ✅ **Side panel — quiz** pós-pomodoro: rodada de até 5 perguntas, 1min cada, auto-avanço, reveal de resposta, reinício automático do foco
-11. 🔲 **Lift state**: unificar Categorias, Perguntas e Pomodoros no App.tsx; implementar cascade delete; persistir answeredIds entre sessões
-12. 🔲 **Testes**: alarme com painel fechado; clicar notificação abre painel no quiz
+11. ✅ **Lift state**: unificar Categorias, Perguntas e Pomodoros no App.tsx; cascade delete; persistir answeredIds entre sessões
+12. ✅ **UX polish**: difficulty nas perguntas, empty states, toasts CRUD, indicador de posição, botão Login desabilitado
+13. 🔲 **⚠️ CRÍTICO — QA alarme com painel fechado** ← próximo passo
+14. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo
 
 ## Checklist rápido de validação
 
-- Alarme dispara com painel **fechado** e browser **aberto**.
+- ⚠️ **Alarme dispara com painel fechado e browser aberto** ← não testado ainda
+  - Simular com 30s via DevTools do service worker (`chrome://extensions` → Inspect worker):
+    ```js
+    chrome.storage.local.set({ timerState: { phase: 'focusing', running: true, endTime: Date.now() + 30000, timeLeft: 30 } })
+    chrome.alarms.create('pomodoro', { when: Date.now() + 30000 })
+    ```
+  - Fechar o side panel → aguardar → notificação deve aparecer → clicar → quiz deve abrir
 - Clique no ícone abre o **side panel** (sem depender de popup principal).
 - Estado correto ao reabrir o painel (lido do `storage` / worker).
 - Nenhum overlay crítico fecha ao clicar "fora" (só botões explícitos).
@@ -174,3 +191,31 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 - Import/export JSON; sons; estatísticas; polish visual; submissão à Chrome Web Store.
 
 **Stack**: Vite + TypeScript + React — bundles **sidepanel** + **service worker**.
+
+## Publicar na Chrome Web Store
+
+### Pré-requisitos
+- Conta de developer Google: https://chrome.google.com/webstore/devconsole — taxa única de **$5 USD**
+- Build de produção limpa: `npm run build` → pasta `dist/`
+
+### Ativos necessários
+| Item | Especificação |
+|------|--------------|
+| Ícone da extensão | 128×128 px PNG (já no `manifest.json`) |
+| Screenshots | Mínimo 1, máximo 5 — **1280×800** ou **640×400** px |
+| Ícone da store | 128×128 px (pode ser o mesmo do manifest) |
+| Descrição curta | até 132 caracteres |
+| Descrição longa | até 16 000 caracteres |
+
+### Passos
+1. `npm run build` — gera `dist/`
+2. Zipar a pasta `dist/` inteira (não a raiz do projeto) → `learn-in-pomodoro.zip`
+3. Entrar no [Chrome Web Store Developer Dashboard](https://chrome.google.com/webstore/devconsole)
+4. **New Item** → fazer upload do `.zip`
+5. Preencher ficha: nome, descrição, categoria (Productivity), screenshots, região
+6. **Privacy**: declarar que não coleta dados de utilizador (extensão é 100% local)
+7. Submeter para revisão — prazo típico: **1–3 dias úteis**
+
+### Observações
+- A revisão pode pedir justificativa para cada permissão (`storage`, `alarms`, `notifications`, `sidePanel`) — prepare um parágrafo curto explicando o uso de cada uma
+- Após aprovação, atualizações são publicadas com novo `.zip` + bump de versão no `manifest.json`
