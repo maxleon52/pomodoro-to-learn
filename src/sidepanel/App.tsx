@@ -63,6 +63,7 @@ export default function App() {
     phase: 'idle', endTime: null, timeLeft: DEFAULT_DURATION, running: false,
   })
   const [timeLeft, setTimeLeft] = useState(DEFAULT_DURATION)
+  const [workerReady, setWorkerReady] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [pendingPomodoro, setPendingPomodoro] = useState<number | null>(null)
   // Chave que força remount do QuizScreen ao iniciar nova rodada
@@ -144,6 +145,7 @@ export default function App() {
       // Se idle sem tempo guardado, mantém a duração da sessão activa
       const tl = calcTimeLeft(state)
       setTimeLeft(state.phase === 'idle' && tl === 0 ? DEFAULT_DURATION : tl)
+      setWorkerReady(true)
     })
   }, [])
 
@@ -382,6 +384,7 @@ export default function App() {
             isRunning={workerState.running}
             phase={phaseLabel(workerState)}
             hasStarted={workerState.phase !== 'idle'}
+            ready={dataLoaded && workerReady}
             category={activeCategory.name}
             pomodoroName={activePomodoro?.name ?? ''}
             questions={remainingQuestionTexts}

@@ -19,6 +19,7 @@ interface TimerScreenProps {
   isRunning: boolean       // true = a contar; false = pausado/parado
   phase: string            // texto da fase atual, ex: "Foco"
   hasStarted: boolean      // true quando o timer já iniciou (mostra botões reset/finish)
+  ready: boolean           // true quando os dados iniciais (storage + worker) já carregaram
   category: string         // nome da categoria de estudo actualmente seleccionada
   pomodoroName: string     // nome do pomodoro seleccionado
   questions: string[]      // perguntas ainda não respondidas (só o enunciado)
@@ -42,6 +43,7 @@ export default function TimerScreen({
   isRunning,
   phase,
   hasStarted,
+  ready,
   category,
   pomodoroName,
   questions,
@@ -60,7 +62,7 @@ export default function TimerScreen({
 }: TimerScreenProps) {
   // Percentagem de tempo restante (0 a 1).
   // Protege divisão por zero quando totalTime ainda não está definido.
-  const progress = totalTime > 0 ? timeLeft / totalTime : 1
+  const progress = totalTime > 0 ? Math.min(1, Math.max(0, timeLeft / totalTime)) : 1
 
   // Quanto do arco SVG deve ficar "escondido" para representar o progresso.
   // offset = 0 → arco completo (início da sessão)
@@ -107,7 +109,7 @@ export default function TimerScreen({
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={offset}
             transform="rotate(-90 140 140)"
-            style={{ filter: 'drop-shadow(0 0 8px rgba(255,107,107,0.4))', transition: 'stroke-dashoffset 1s linear' }}
+            style={{ filter: 'drop-shadow(0 0 8px rgba(255,107,107,0.4))', transition: ready ? 'stroke-dashoffset 1s linear' : 'none' }}
           />
         </svg>
 
