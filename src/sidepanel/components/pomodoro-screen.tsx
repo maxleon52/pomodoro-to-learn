@@ -143,8 +143,8 @@ export default function PomodoroScreen({ categories, questions, pomodoros, onAdd
             <div className="pm-duration-row">
               <button
                 className="pm-duration-btn"
-                onClick={() => setFormDuration(prev => Math.max(5, prev - 5))}
-                disabled={formDuration <= 5}
+                onClick={() => setFormDuration(prev => Math.max(1, prev - 1))}
+                disabled={formDuration <= 1}
               >
                 −
               </button>

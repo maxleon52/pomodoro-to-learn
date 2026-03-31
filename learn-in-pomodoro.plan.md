@@ -47,8 +47,11 @@ todos:
   - id: publish-store
     content: "Publicar na Chrome Web Store: criar conta de developer ($5 taxa única), empacotar dist/ como .zip, preencher ficha da store (descrição, screenshots, ícones 128px), submeter para revisão."
     status: pending
+  - id: qa-e2e
+    content: "Playwright E2E (21 testes, 21 passando): empty states, CRUD de categorias/perguntas/pomodoros + toasts, controles do timer (play/pause/reset), troca de pomodoro com confirmação, persistência no chrome.storage.local. Dados mock removidos do código; bug 00:00 no estado inicial corrigido."
+    status: done
   - id: qa-background
-    content: "⚠️ CRÍTICO — Testar alarme com painel fechado: (1) iniciar timer, (2) fechar o side panel, (3) aguardar fim da sessão, (4) confirmar que a notificação aparece, (5) clicar na notificação e confirmar que o side panel reabre no quiz. Usar DevTools do service worker para simular timer de 30s sem esperar 25min."
+    content: "⚠️ CRÍTICO — Testar alarme com painel fechado (manual): (1) iniciar timer, (2) fechar o side panel, (3) aguardar fim da sessão, (4) confirmar que a notificação aparece, (5) clicar na notificação e confirmar que o side panel reabre no quiz. Simular com 30s via DevTools do service worker."
     status: pending
 isProject: false
 ---
@@ -169,12 +172,14 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 10. ✅ **Side panel — quiz** pós-pomodoro: rodada de até 5 perguntas, 1min cada, auto-avanço, reveal de resposta, reinício automático do foco
 11. ✅ **Lift state**: unificar Categorias, Perguntas e Pomodoros no App.tsx; cascade delete; persistir answeredIds entre sessões
 12. ✅ **UX polish**: difficulty nas perguntas, empty states, toasts CRUD, indicador de posição, botão Login desabilitado
-13. 🔲 **⚠️ CRÍTICO — QA alarme com painel fechado** ← próximo passo
-14. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo
+13. ✅ **QA E2E com Playwright**: 21 testes passando — empty states, CRUD, timer, troca de pomodoro, persistência
+14. 🔲 **⚠️ CRÍTICO — QA alarme com painel fechado** (manual) ← próximo passo
+15. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo
 
 ## Checklist rápido de validação
 
-- ⚠️ **Alarme dispara com painel fechado e browser aberto** ← não testado ainda
+- ✅ **Playwright E2E** — 21/21 passando (empty states, CRUD, timer, persistência)
+- ⚠️ **Alarme dispara com painel fechado e browser aberto** ← não testado ainda (manual)
   - Simular com 30s via DevTools do service worker (`chrome://extensions` → Inspect worker):
     ```js
     chrome.storage.local.set({ timerState: { phase: 'focusing', running: true, endTime: Date.now() + 30000, timeLeft: 30 } })

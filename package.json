@@ -4,12 +4,15 @@
   "description": "Browser extension: Pomodoro timer with flashcard review",
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build"
+    "build": "vite build",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/chrome": "^0.1.38",
     "@types/node": "^25.5.0",
     "@types/react": "^19.2.14",

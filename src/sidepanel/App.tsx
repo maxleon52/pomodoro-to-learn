@@ -12,26 +12,6 @@ import type { TimerState, WorkerMessage, Category, Question, Pomodoro } from '..
 // Duração padrão de uma sessão: 25 minutos em segundos
 const DEFAULT_DURATION = 25 * 60
 
-// Dados iniciais — usados apenas no primeiro arranque (quando storage está vazio)
-const INITIAL_CATEGORIES: Category[] = [
-  { id: '1', name: 'Programação', color: '#FF6B6B', emoji: '💻' },
-  { id: '2', name: 'Inglês',      color: '#6366F1', emoji: '🌍' },
-  { id: '3', name: 'Entrevistas', color: '#22C55E', emoji: '🎓' },
-]
-
-const INITIAL_QUESTIONS: Question[] = [
-  { id: '1', categoryId: '1', question: 'O que é uma closure em JavaScript?',      options: ['Uma função com acesso ao escopo léxico externo', 'Um objeto que agrupa dados e comportamentos', 'Uma estrutura de loop assíncrono', 'Um tipo especial de array'],                  correctAnswer: 'A' },
-  { id: '2', categoryId: '2', question: "What is the past tense of 'go'?",         options: ['Goed', 'Went', 'Gone', 'Going'],                                                                                                                                               correctAnswer: 'B' },
-  { id: '3', categoryId: '3', question: 'Qual a diferença entre TCP e UDP?',       options: ['TCP é orientado a conexão; UDP é sem conexão', 'UDP é mais lento que TCP', 'TCP não garante entrega; UDP garante', 'Não há diferença prática'],                               correctAnswer: 'A' },
-  { id: '4', categoryId: '1', question: 'O que é uma Promise em JavaScript?',      options: ['Função assíncrona imediata', 'Objeto que representa valor futuro', 'Tipo de loop assíncrono', 'Método de ordenação de arrays'],                                              correctAnswer: 'B' },
-  { id: '5', categoryId: '2', question: "How do you use 'despite' in a sentence?", options: ['Despite I was tired', 'Despite being tired', 'Despite of being tired', 'Despite to be tired'],                                                                                correctAnswer: 'B' },
-]
-
-const INITIAL_POMODOROS: Pomodoro[] = [
-  { id: '1', name: 'Estudar Inglês',      categoryId: '2', questionIds: ['2', '5'], duration: 25 },
-  { id: '2', name: 'Treinar Entrevistas', categoryId: '3', questionIds: ['3'],      duration: 25 },
-  { id: '3', name: 'Revisão Programação', categoryId: '1', questionIds: ['1', '4'], duration: 25 },
-]
 
 // Envia uma mensagem ao service worker e aguarda a resposta com o estado actualizado
 function sendToWorker(msg: WorkerMessage): Promise<TimerState> {
@@ -58,9 +38,9 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>('timer')
 
   // --- Dados da aplicação (fonte da verdade) ---
-  const [categories, setCategories] = useState<Category[]>(INITIAL_CATEGORIES)
-  const [questions, setQuestions] = useState<Question[]>(INITIAL_QUESTIONS)
-  const [pomodoros, setPomodoros] = useState<Pomodoro[]>(INITIAL_POMODOROS)
+  const [categories, setCategories] = useState<Category[]>([])
+  const [questions, setQuestions] = useState<Question[]>([])
+  const [pomodoros, setPomodoros] = useState<Pomodoro[]>([])
   const [pomodoroIndex, setPomodoroIndex] = useState(0)
   // Perguntas respondidas por pomodoro: { [pomodoroId]: string[] }
   const [answeredIdsMap, setAnsweredIdsMap] = useState<Record<string, string[]>>({})
@@ -161,7 +141,9 @@ export default function App() {
   useEffect(() => {
     sendToWorker({ type: 'GET_STATE' }).then(state => {
       setWorkerState(state)
-      setTimeLeft(calcTimeLeft(state))
+      // Se idle sem tempo guardado, mantém a duração da sessão activa
+      const tl = calcTimeLeft(state)
+      setTimeLeft(state.phase === 'idle' && tl === 0 ? DEFAULT_DURATION : tl)
     })
   }, [])
 
@@ -421,7 +403,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" data-loaded={dataLoaded ? 'true' : 'false'}>
       <div className="app-content">{renderScreen()}</div>
       <BottomNav active={screen} onChange={setScreen} />
       <ToastContainer toasts={toasts} onDone={removeToast} />
