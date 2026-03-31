@@ -136,7 +136,8 @@ export default function TimerScreen({
         )}
 
         {/* Botão principal — alterna entre Play e Pause consoante o estado */}
-        <button className="ctrl-btn ctrl-primary" onClick={onPlay} aria-label={isRunning ? 'Pausar' : 'Iniciar'}>
+        {/* Desabilitado quando o pomodoro está concluído: o utilizador deve reiniciar o ciclo primeiro */}
+        <button className="ctrl-btn ctrl-primary" onClick={onPlay} aria-label={isRunning ? 'Pausar' : 'Iniciar'} disabled={isCompleted && !isRunning} style={isCompleted && !isRunning ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}>
           {isRunning
             ? <Pause size={28} color="#FFFFFF" fill="#FFFFFF" />
             : <Play size={28} color="#FFFFFF" fill="#FFFFFF" />}
