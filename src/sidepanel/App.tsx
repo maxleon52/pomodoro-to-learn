@@ -142,12 +142,20 @@ export default function App() {
   useEffect(() => {
     sendToWorker({ type: 'GET_STATE' }).then(state => {
       setWorkerState(state)
-      // Se idle sem tempo guardado, mantém a duração da sessão activa
       const tl = calcTimeLeft(state)
-      setTimeLeft(state.phase === 'idle' && tl === 0 ? DEFAULT_DURATION : tl)
+      // Se idle, timeLeft será corrigido pelo efeito abaixo quando sessionDuration carregar
+      setTimeLeft(state.phase === 'idle' ? DEFAULT_DURATION : tl)
       setWorkerReady(true)
     })
   }, [])
+
+  // Quando o timer está idle, mantém timeLeft sincronizado com a duração do pomodoro activo.
+  // Dispara quando: storage carrega (sessionDuration muda), utilizador troca de pomodoro, etc.
+  useEffect(() => {
+    if (workerState.phase === 'idle') {
+      setTimeLeft(sessionDuration)
+    }
+  }, [sessionDuration, workerState.phase])
 
   // Ouve mudanças no storage — reagindo a eventos do worker (ex: alarme disparou)
   useEffect(() => {
