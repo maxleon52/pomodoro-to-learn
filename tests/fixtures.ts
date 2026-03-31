@@ -35,7 +35,10 @@ export const test = base.extend<ExtensionFixtures>({
     // Espera o App terminar de hidratar do storage (inclusive o useEffect de persistência)
     // ANTES de limpar — evita race condition onde o App reescreve dados após o clear()
     await page.waitForSelector('[data-loaded="true"]', { timeout: 10000 })
-    await page.evaluate(async () => { await chrome.storage.local.clear() })
+    await page.evaluate(async () => {
+      await chrome.runtime.sendMessage({ type: 'RESET' })
+      await chrome.storage.local.clear()
+    })
     await page.reload()
     // Aguarda nova hidratação (agora com storage vazio)
     await page.waitForSelector('[data-loaded="true"]', { timeout: 10000 })

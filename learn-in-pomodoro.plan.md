@@ -48,11 +48,17 @@ todos:
     content: "Publicar na Chrome Web Store: criar conta de developer ($5 taxa única), empacotar dist/ como .zip, preencher ficha da store (descrição, screenshots, ícones 128px), submeter para revisão."
     status: pending
   - id: qa-e2e
-    content: "Playwright E2E (21 testes, 21 passando): empty states, CRUD de categorias/perguntas/pomodoros + toasts, controles do timer (play/pause/reset), troca de pomodoro com confirmação, persistência no chrome.storage.local. Dados mock removidos do código; bug 00:00 no estado inicial corrigido."
+    content: "Playwright E2E (21 testes, 21 passando): empty states, CRUD de categorias/perguntas/pomodoros + toasts, controles do timer (play/pause/reset), troca de pomodoro com confirmação, persistência no chrome.storage.local. Dados mock removidos do código; bug 00:00 no estado inicial corrigido. ⚠️ timerState não é limpo entre testes — risco de contaminação nos testes de timer se service worker ficar em estado focusing."
+    status: done
+  - id: bug-fixes-post-playwright
+    content: "Bugs corrigidos após integração Playwright: (1) arco coral animava loucamente no arranque — progress não estava clampado a [0,1], causava strokeDashoffset negativo enorme quando timeLeft > totalTime (ex: pomodoro de 1min com timeLeft=1500); (2) botão play ficava ativo com pomodoro concluído — timer corria mas terminava sem mostrar perguntas; (3) timer exibia 25:00 no arranque mesmo com pomodoro de duração diferente — timeLeft não sincronizava com sessionDuration enquanto idle."
+    status: done
+  - id: qa-e2e-timer-isolation
+    content: "Melhorar isolamento dos testes de timer: enviar RESET ao worker antes do clear() no fixture para cancelar alarmes pendentes e garantir service worker idle. chrome.storage.local.clear() já apagava o timerState mas não cancelava os chrome.alarms."
     status: done
   - id: qa-background
-    content: "⚠️ CRÍTICO — Testar alarme com painel fechado (manual): (1) iniciar timer, (2) fechar o side panel, (3) aguardar fim da sessão, (4) confirmar que a notificação aparece, (5) clicar na notificação e confirmar que o side panel reabre no quiz. Simular com 30s via DevTools do service worker."
-    status: pending
+    content: "Testar alarme com painel fechado (manual): (1) iniciar timer, (2) fechar o side panel, (3) aguardar fim da sessão, (4) confirmar que a notificação aparece, (5) clicar na notificação e confirmar que o side panel reabre no quiz. Testado e funcionando."
+    status: done
 isProject: false
 ---
 
@@ -173,13 +179,17 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 11. ✅ **Lift state**: unificar Categorias, Perguntas e Pomodoros no App.tsx; cascade delete; persistir answeredIds entre sessões
 12. ✅ **UX polish**: difficulty nas perguntas, empty states, toasts CRUD, indicador de posição, botão Login desabilitado
 13. ✅ **QA E2E com Playwright**: 21 testes passando — empty states, CRUD, timer, troca de pomodoro, persistência
-14. 🔲 **⚠️ CRÍTICO — QA alarme com painel fechado** (manual) ← próximo passo
-15. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo
+14. ✅ **Bug fixes pós-Playwright**: arco coral sem clamp (girava loucamente), play ativo com pomodoro concluído, timer ignorava duração do pomodoro no arranque
+15. ✅ **Isolamento E2E**: RESET ao worker no fixture cancela alarmes pendentes entre testes
+16. ✅ **QA alarme com painel fechado** — testado e funcionando
+17. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo ← próximo passo
 
 ## Checklist rápido de validação
 
 - ✅ **Playwright E2E** — 21/21 passando (empty states, CRUD, timer, persistência)
-- ⚠️ **Alarme dispara com painel fechado e browser aberto** ← não testado ainda (manual)
+- ✅ **Bug fixes pós-Playwright** — arco coral, play com pomodoro concluído, duração no arranque
+- ✅ **Isolamento E2E** — RESET enviado ao worker no fixture antes do clear() para cancelar alarmes pendentes
+- ✅ **Alarme dispara com painel fechado** — testado e funcionando
   - Simular com 30s via DevTools do service worker (`chrome://extensions` → Inspect worker):
     ```js
     chrome.storage.local.set({ timerState: { phase: 'focusing', running: true, endTime: Date.now() + 30000, timeLeft: 30 } })
