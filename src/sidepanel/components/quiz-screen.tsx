@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { Flame, LogIn, Send, CircleCheck, Zap } from 'lucide-react'
 import './quiz-screen.css'
 
@@ -16,8 +16,8 @@ export interface QuizQuestion {
 interface QuizScreenProps {
   questions: QuizQuestion[]   // até 5 perguntas da rodada
   category: string
-  onAnswered: (questionId: string) => void  // usuário respondeu → encerra rodada
-  onRoundEnd: () => void                    // todas as perguntas expiraram → encerra rodada
+  onAnswered: (questionId: string, correct: boolean) => void  // usuário respondeu
+  onRoundEnd: () => void                                       // todas as perguntas expiraram → encerra rodada
 }
 
 interface QuizState {
@@ -68,10 +68,26 @@ export default function QuizScreen({ questions, category, onAnswered, onRoundEnd
 
   const currentQuestion = questions[quiz.currentIndex]
 
+  // Embaralha as opções uma única vez por pergunta
+  const shuffledOptions = useMemo(() => {
+    const opts = currentQuestion.options.map((text, i) => ({
+      text,
+      isCorrect: LABELS[i] === currentQuestion.correctAnswer,
+    }))
+    for (let i = opts.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [opts[i], opts[j]] = [opts[j], opts[i]]
+    }
+    return opts
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [quiz.currentIndex])
+
   function handleConfirm() {
     if (!quiz.selected) return
     if (quiz.confirmed) {
-      onAnsweredRef.current(currentQuestion.id)
+      const selectedIdx = LABELS.indexOf(quiz.selected)
+      const correct = shuffledOptions[selectedIdx]?.isCorrect ?? false
+      onAnsweredRef.current(currentQuestion.id, correct)
       // Avança para a próxima pergunta da rodada ou encerra se for a última
       const next = quiz.currentIndex + 1
       if (next < questionsLenRef.current) {
@@ -85,16 +101,19 @@ export default function QuizScreen({ questions, category, onAnswered, onRoundEnd
   }
 
   function optClass(letter: Answer) {
+    const idx = LABELS.indexOf(letter)
+    const isCorrect = shuffledOptions[idx]?.isCorrect ?? false
     if (!quiz.confirmed) return `quiz-opt${quiz.selected === letter ? ' quiz-opt--selected' : ''}`
-    if (letter === currentQuestion.correctAnswer) return 'quiz-opt quiz-opt--correct'
+    if (isCorrect) return 'quiz-opt quiz-opt--correct'
     if (letter === quiz.selected) return 'quiz-opt quiz-opt--wrong'
     return 'quiz-opt'
   }
 
   function badgeClass(letter: Answer) {
+    const idx = LABELS.indexOf(letter)
+    const isCorrect = shuffledOptions[idx]?.isCorrect ?? false
     if (!quiz.confirmed) return `quiz-badge${quiz.selected === letter ? ' quiz-badge--on' : ''}`
-    if (letter === currentQuestion.correctAnswer) return 'quiz-badge quiz-badge--on'
-    if (letter === quiz.selected) return 'quiz-badge quiz-badge--on'
+    if (isCorrect || letter === quiz.selected) return 'quiz-badge quiz-badge--on'
     return 'quiz-badge'
   }
 
@@ -154,7 +173,7 @@ export default function QuizScreen({ questions, category, onAnswered, onRoundEnd
               onClick={() => !quiz.confirmed && setQuiz(prev => ({ ...prev, selected: letter }))}
             >
               <span className={badgeClass(letter)}>{letter}</span>
-              <span className="quiz-opt-text">{currentQuestion.options[i]}</span>
+              <span className="quiz-opt-text">{shuffledOptions[i]?.text}</span>
             </button>
           ))}
         </div>

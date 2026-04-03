@@ -5,6 +5,7 @@ import QuizScreen from './components/quiz-screen'
 import CategoriesScreen from './components/categories-screen'
 import QuestionsScreen from './components/questions-screen'
 import PomodoroScreen from './components/pomodoro-screen'
+import ImportScreen, { type ImportPayload } from './components/import-screen'
 import BottomNav, { type Screen } from './components/bottom-nav'
 import ToastContainer, { type ToastData } from './components/toast'
 import type { TimerState, WorkerMessage, Category, Question, Pomodoro } from '../shared/types'
@@ -259,8 +260,9 @@ export default function App() {
     setPendingPomodoro(null)
   }
 
-  function handleAnswered(questionId: string) {
+  function handleAnswered(questionId: string, correct: boolean) {
     if (!activePomodoro) return
+    if (!correct) return  // errou → pergunta volta nas próximas rodadas
     const pomId = activePomodoro.id
     setAnsweredIdsMap(prev => ({ ...prev, [pomId]: [...(prev[pomId] ?? []), questionId] }))
     // Não inicia novo timer — o quiz avança internamente para a próxima pergunta
@@ -347,6 +349,75 @@ export default function App() {
     showToast('Pomodoro excluído')
   }
 
+  // --- Import ---
+
+  function handleImport({ items }: ImportPayload) {
+    const newCategories: Category[] = []
+    const newPomodoros: Pomodoro[] = []
+    const newQuestions: Question[] = []
+
+    const catBySlug = new Map(categories.map(c => [c.slug, c]))
+    const pomBySlug = new Map(pomodoros.map(p => [p.slug, p]))
+
+    for (const item of items) {
+      if (!catBySlug.has(item.categorySlug)) {
+        const cat: Category = {
+          id: crypto.randomUUID(),
+          slug: item.categorySlug,
+          name: item.categoryName,
+          color: '#9CA3AF',
+          emoji: '📚',
+        }
+        catBySlug.set(item.categorySlug, cat)
+        newCategories.push(cat)
+      }
+
+      if (!pomBySlug.has(item.pomodoroSlug)) {
+        const cat = catBySlug.get(item.categorySlug)!
+        const pom: Pomodoro = {
+          id: crypto.randomUUID(),
+          slug: item.pomodoroSlug,
+          name: item.pomodoroName,
+          categoryId: cat.id,
+          questionIds: [],
+          duration: item.pomodoroDuration,
+        }
+        pomBySlug.set(item.pomodoroSlug, pom)
+        newPomodoros.push(pom)
+      }
+
+      const cat = catBySlug.get(item.categorySlug)!
+      const q: Question = {
+        id: crypto.randomUUID(),
+        categoryId: cat.id,
+        question: item.question,
+        options: item.options.map(o => o.answer) as [string, string, string, string],
+        correctAnswer: item.correctAnswer,
+        difficulty: item.difficulty,
+      }
+      newQuestions.push(q)
+
+      const pom = pomBySlug.get(item.pomodoroSlug)!
+      pom.questionIds.push(q.id)
+    }
+
+    if (newCategories.length) setCategories(prev => [...prev, ...newCategories])
+    if (newPomodoros.length) {
+      setPomodoros(prev => [
+        ...prev.map(p => {
+          const updated = pomBySlug.get(p.slug)
+          return updated && updated !== p ? updated : p
+        }),
+        ...newPomodoros,
+      ])
+    } else {
+      // Pomodoros existentes podem ter recebido novas questionIds
+      setPomodoros(prev => prev.map(p => pomBySlug.get(p.slug) ?? p))
+    }
+    setQuestions(prev => [...prev, ...newQuestions])
+    showToast(`${newQuestions.length} pergunta${newQuestions.length !== 1 ? 's' : ''} importada${newQuestions.length !== 1 ? 's' : ''}`)
+  }
+
   function renderScreen() {
     // Quiz sobrepõe qualquer tela quando há perguntas pendentes na rodada
     if (workerState.phase === 'quiz_pending' && !isCompleted && roundQuestions.length > 0) {
@@ -391,6 +462,15 @@ export default function App() {
             onAdd={handleAddPomodoro}
             onEdit={handleEditPomodoro}
             onDelete={handleDeletePomodoro}
+          />
+        )
+      case 'import':
+        return (
+          <ImportScreen
+            categories={categories}
+            questions={questions}
+            pomodoros={pomodoros}
+            onImport={handleImport}
           />
         )
       default:
