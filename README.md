@@ -2,6 +2,46 @@
 
 Extensão de browser: sessão de foco com temporizador e revisão rápida (flashcard / múltipla escolha) após cada sessão.
 
+## Funcionalidades
+
+- **Timer Pomodoro** — sessões configuráveis com contagem regressiva no service worker; notificação ao fim.
+- **Quiz pós-sessão** — até 5 perguntas por rodada, 60s cada, opções embaralhadas. Respostas erradas voltam nas rodadas seguintes; só respostas corretas marcam progresso.
+- **CRUD completo** — categorias (nome, cor, emoji), perguntas (múltipla escolha A/B/C/D, dificuldade) e pomodoros (nome, duração, seleção de perguntas).
+- **Slugs únicos** — categorias e pomodoros têm slug (kebab-case) gerado do nome, editável manualmente, validado contra duplicatas.
+- **Importação via JSON** — importe perguntas em lote com pré-visualização antes de confirmar; categorias e pomodoros inexistentes são criados automaticamente pelo slug.
+
+## Importar Perguntas
+
+Na tela **Importar** (menu inferior), faça upload de um arquivo `.json` com o seguinte formato:
+
+```json
+[
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-basico",
+    "pomodoroName": "JS Básico",
+    "pomodoroDuration": 25,
+    "question": "O que é closure?",
+    "options": [
+      { "option": "A", "answer": "Acesso ao escopo externo" },
+      { "option": "B", "answer": "Não retorna valor" },
+      { "option": "C", "answer": "Um tipo de loop" },
+      { "option": "D", "answer": "Um objeto global" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "medium"
+  }
+]
+```
+
+- Todos os campos são obrigatórios. Limite: **2 MB**.
+- `categorySlug` e `pomodoroSlug` referenciam itens existentes ou criam novos automaticamente.
+- Perguntas com enunciado idêntico a uma já cadastrada aparecem com aviso na pré-visualização.
+- Use `{ "option": "A", "answer": "..." }` nas opções — evita que IAs coloquem o texto da resposta em `correctAnswer`.
+
+---
+
 ## Desenvolvimento
 
 ```bash

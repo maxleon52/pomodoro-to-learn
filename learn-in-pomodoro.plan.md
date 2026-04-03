@@ -45,8 +45,14 @@ todos:
     content: "Slug único para Categorias e Pomodoros: campo slug (kebab-case) gerado automaticamente do nome mas editável; sincroniza nome→slug até o utilizador editar manualmente; validação de duplicata inline + botão desabilitado; IDs migrados de Date.now() para crypto.randomUUID(); migration automática de dados legacy ao carregar appData (gera slug do nome se ausente)."
     status: done
   - id: import-questions
-    content: "Tela dedicada de Importação (nova tela no menu). Importação de perguntas via JSON. Formato: array de objetos com categorySlug, pomodoroSlug (opcional), question, options (4 itens), correctAnswer (A/B/C/D), difficulty (opcional). Categorias e pomodoros referenciados por slug — se não existirem, são criados. Pré-visualização antes de confirmar: lista o que será criado (novas categorias, novos pomodoros, N perguntas) com opção de remover itens individualmente. Validação completa antes de importar. Limite de 2MB."
-    status: pending
+    content: "Tela dedicada de Importação (nova tela no menu). Importação de perguntas via JSON. Todos os campos são obrigatórios. Formato: array de objetos com { categorySlug, categoryName, pomodoroSlug, pomodoroName, pomodoroDuration (minutos), question, options (array de 4 objetos { option: 'A'|'B'|'C'|'D', answer: string }), correctAnswer (A/B/C/D), difficulty (easy|medium|hard) }. O formato de options com objetos { option, answer } evita ambiguidade — a IA não coloca o texto da resposta em correctAnswer. Categorias e pomodoros referenciados por slug — se não existirem, são criados com os campos name/duration fornecidos. Perguntas com enunciado idêntico a uma já existente são marcadas como duplicadas na pré-visualização (exibidas com aviso, não bloqueiam o import — utilizador decide se as mantém ou remove). Pré-visualização antes de confirmar: agrupa por 'novas categorias', 'novos pomodoros', 'perguntas a importar' (com badge de duplicata quando aplicável); permite remover itens individualmente. Validação completa antes de mostrar a pré-visualização. Limite de 2MB."
+    status: done
+  - id: quiz-shuffle-options
+    content: "Embaralhamento visual das opções no quiz: as 4 alternativas são embaralhadas uma vez por pergunta (Fisher-Yates via useMemo com dependência em currentIndex). A resposta correta é determinada por isCorrect no item embaralhado, não pela letra original. O modelo de dados não muda — shuffle é 100% visual."
+    status: done
+  - id: quiz-wrong-answer-repeat
+    content: "Perguntas respondidas incorretamente voltam nas rodadas seguintes: onAnswered agora recebe (questionId, correct: boolean); só adiciona ao answeredIdsMap se correct === true. Perguntas erradas e perguntas que expiraram (timeout) reaparecem nos rounds seguintes até serem acertadas."
+    status: done
   - id: quiz-focused-mode
     content: "Modo Focado: sessão de quiz sem pomodoro, com filtro por dificuldade. Acessível a partir do menu."
     status: future
@@ -189,8 +195,10 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 15. ✅ **Isolamento E2E**: RESET ao worker no fixture cancela alarmes pendentes entre testes
 16. ✅ **QA alarme com painel fechado** — testado e funcionando
 17. ✅ **Slug único para Categorias e Pomodoros**: campo slug editável, validação de duplicata, crypto.randomUUID(), migration de dados legacy
-18. 🔲 **Tela de Importação**: nova tela no menu, JSON com slugs, pré-visualização do que será criado, confirmação antes de importar
-18. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo ← próximo passo
+18. ✅ **Tela de Importação**: nova tela no menu, JSON com slugs, pré-visualização do que será criado, confirmação antes de importar
+19. ✅ **Embaralhamento de opções no quiz**: Fisher-Yates via useMemo por pergunta; resposta correta por isCorrect, não por letra
+20. ✅ **Perguntas erradas voltam nas rodadas seguintes**: onAnswered(id, correct) — só persiste se acertou
+21. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo ← próximo passo
 
 ## Checklist rápido de validação
 

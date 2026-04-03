@@ -12,10 +12,11 @@ Documento de referência das regras de negócio da aplicação. Independente de 
 4. [Pomodoros (Sessões de Estudo)](#4-pomodoros-sessões-de-estudo)
 5. [Timer](#5-timer)
 6. [Ciclo de Quiz](#6-ciclo-de-quiz)
-7. [Integração Timer + Quiz](#7-integração-timer--quiz)
-8. [Progresso e Conclusão](#8-progresso-e-conclusão)
-9. [Notificações](#9-notificações)
-10. [Validações Gerais](#10-validações-gerais)
+7. [Importação de Perguntas](#7-importação-de-perguntas)
+8. [Integração Timer + Quiz](#8-integração-timer--quiz)
+9. [Progresso e Conclusão](#9-progresso-e-conclusão)
+10. [Notificações](#10-notificações)
+11. [Validações Gerais](#11-validações-gerais)
 
 ---
 
@@ -202,6 +203,7 @@ O quiz é exibido quando o timer entra no estado `quiz_pending`.
 ### Responder uma Pergunta
 
 - O usuário tem **60 segundos** para responder cada pergunta.
+- As **4 alternativas são embaralhadas visualmente** a cada pergunta (Fisher-Yates). A ordem não é a mesma do cadastro. Isso é puramente visual — o modelo de dados não muda.
 - O usuário seleciona uma das 4 alternativas. A seleção pode ser trocada antes de confirmar.
 - Após selecionar, o usuário deve **confirmar a resposta** para avançar.
 - Após confirmar, a resposta **não pode mais ser alterada**.
@@ -227,10 +229,58 @@ O quiz é exibido quando o timer entra no estado `quiz_pending`.
 
 - Os ciclos (timer → quiz → timer → quiz) se repetem até que **todas** as perguntas do pomodoro sejam respondidas corretamente.
 - Perguntas que expiraram (timeout) **não são marcadas como respondidas** e reaparecem nos rounds seguintes.
+- Perguntas respondidas **incorretamente** também **não são marcadas como respondidas** e reaparecem nos rounds seguintes.
+- Somente respostas **corretas** removem a pergunta do ciclo.
 
 ---
 
-## 7. Integração Timer + Quiz
+## 7. Importação de Perguntas
+
+### Acesso
+
+- A importação é feita na tela **Importar**, acessível pelo menu de navegação inferior.
+
+### Formato do Arquivo
+
+- Apenas arquivos **JSON** são aceitos. Limite de **2 MB**.
+- O JSON deve ser um array de objetos. Todos os campos são obrigatórios:
+
+| Campo | Tipo | Descrição |
+|---|---|---|
+| `categorySlug` | string | Slug da categoria (kebab-case) |
+| `categoryName` | string | Nome da categoria (usado se for nova) |
+| `pomodoroSlug` | string | Slug do pomodoro (kebab-case) |
+| `pomodoroName` | string | Nome do pomodoro (usado se for novo) |
+| `pomodoroDuration` | número inteiro ≥ 1 | Duração em minutos (usada se for novo) |
+| `question` | string | Texto da pergunta |
+| `options` | array de 4 objetos `{ option, answer }` | Alternativas A, B, C, D em ordem |
+| `correctAnswer` | `"A"`, `"B"`, `"C"` ou `"D"` | Letra da alternativa correta |
+| `difficulty` | `"easy"`, `"medium"` ou `"hard"` | Dificuldade da pergunta |
+
+- O campo `options` usa objetos `{ "option": "A", "answer": "texto" }` para evitar que ferramentas de IA coloquem o texto da resposta em `correctAnswer` em vez da letra.
+
+### Comportamento ao Importar
+
+- **Categorias e pomodoros referenciados por slug:**
+  - Se o slug **já existir**, o item existente é reutilizado (nenhum novo é criado).
+  - Se o slug **não existir**, a categoria/pomodoro é criado com os campos `name`/`duration` fornecidos. A categoria recebe cor e emoji padrão, editáveis depois.
+- **Perguntas importadas** são vinculadas ao pomodoro pelo `pomodoroSlug`.
+- **Perguntas duplicadas** (mesmo enunciado de uma já existente) são identificadas na pré-visualização com badge "JÁ EXISTE". O utilizador pode mantê-las ou removê-las antes de confirmar.
+
+### Pré-visualização
+
+- Antes de confirmar, é exibida uma tela de pré-visualização agrupada em:
+  1. Novas categorias a criar
+  2. Novos pomodoros a criar
+  3. Perguntas a importar (com badge de duplicata quando aplicável)
+- Cada item pode ser removido individualmente com o botão `[×]`.
+- A confirmação só é possível se houver pelo menos uma pergunta na lista.
+- A validação completa do arquivo ocorre antes de mostrar a pré-visualização; erros de formato bloqueiam o fluxo com mensagem específica.
+
+---
+
+## 8. Integração Timer + Quiz
+
 
 ### Quando o Quiz Aparece
 
@@ -250,7 +300,7 @@ O quiz é exibido quando o timer entra no estado `quiz_pending`.
 
 ---
 
-## 8. Progresso e Conclusão
+## 9. Progresso e Conclusão
 
 ### Rastreamento de Respostas
 
@@ -273,7 +323,7 @@ Um pomodoro é considerado **concluído** quando todas as perguntas associadas a
 
 ---
 
-## 9. Notificações
+## 10. Notificações
 
 ### Quando São Disparadas
 
@@ -290,7 +340,7 @@ Um pomodoro é considerado **concluído** quando todas as perguntas associadas a
 
 ---
 
-## 10. Validações Gerais
+## 11. Validações Gerais
 
 ### Slugs
 

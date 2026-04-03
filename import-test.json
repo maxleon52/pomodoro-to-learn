@@ -1,0 +1,162 @@
+[
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-basico",
+    "pomodoroName": "JS Básico",
+    "pomodoroDuration": 25,
+    "question": "O que é closure?",
+    "options": [
+      { "option": "A", "answer": "Uma função com acesso ao escopo externo" },
+      { "option": "B", "answer": "Uma função que não retorna valor" },
+      { "option": "C", "answer": "Um tipo de loop" },
+      { "option": "D", "answer": "Um objeto global" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "medium"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-basico",
+    "pomodoroName": "JS Básico",
+    "pomodoroDuration": 25,
+    "question": "Qual a diferença entre var, let e const?",
+    "options": [
+      { "option": "A", "answer": "Escopo e mutabilidade" },
+      { "option": "B", "answer": "Somente nome diferente" },
+      { "option": "C", "answer": "Tipo de dado" },
+      { "option": "D", "answer": "Performance" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "easy"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-basico",
+    "pomodoroName": "JS Básico",
+    "pomodoroDuration": 25,
+    "question": "O que o 'this' representa?",
+    "options": [
+      { "option": "A", "answer": "O contexto de execução" },
+      { "option": "B", "answer": "Sempre o window" },
+      { "option": "C", "answer": "Uma variável local" },
+      { "option": "D", "answer": "Um tipo primitivo" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "medium"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-basico",
+    "pomodoroName": "JS Básico",
+    "pomodoroDuration": 25,
+    "question": "O que é hoisting?",
+    "options": [
+      { "option": "A", "answer": "Elevação de declarações" },
+      { "option": "B", "answer": "Execução assíncrona" },
+      { "option": "C", "answer": "Importação de módulos" },
+      { "option": "D", "answer": "Manipulação de DOM" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "medium"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-basico",
+    "pomodoroName": "JS Básico",
+    "pomodoroDuration": 25,
+    "question": "Qual método transforma JSON em objeto?",
+    "options": [
+      { "option": "A", "answer": "JSON.parse" },
+      { "option": "B", "answer": "JSON.stringify" },
+      { "option": "C", "answer": "Object.assign" },
+      { "option": "D", "answer": "toJSON" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "easy"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-intermediario",
+    "pomodoroName": "JS Intermediário",
+    "pomodoroDuration": 25,
+    "question": "O que é uma Promise?",
+    "options": [
+      { "option": "A", "answer": "Objeto para operações assíncronas" },
+      { "option": "B", "answer": "Função síncrona" },
+      { "option": "C", "answer": "Tipo de loop" },
+      { "option": "D", "answer": "Objeto de DOM" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "medium"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-intermediario",
+    "pomodoroName": "JS Intermediário",
+    "pomodoroDuration": 25,
+    "question": "Qual a função do async/await?",
+    "options": [
+      { "option": "A", "answer": "Simplificar código assíncrono" },
+      { "option": "B", "answer": "Criar loops" },
+      { "option": "C", "answer": "Manipular arrays" },
+      { "option": "D", "answer": "Declarar variáveis" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "medium"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-intermediario",
+    "pomodoroName": "JS Intermediário",
+    "pomodoroDuration": 25,
+    "question": "O que o método map faz?",
+    "options": [
+      { "option": "A", "answer": "Cria novo array transformando elementos" },
+      { "option": "B", "answer": "Filtra elementos" },
+      { "option": "C", "answer": "Remove elementos" },
+      { "option": "D", "answer": "Ordena array" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "easy"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-avancado",
+    "pomodoroName": "JS Avançado",
+    "pomodoroDuration": 25,
+    "question": "O que é debounce?",
+    "options": [
+      { "option": "A", "answer": "Limitar execução de função" },
+      { "option": "B", "answer": "Executar função em loop" },
+      { "option": "C", "answer": "Criar promise" },
+      { "option": "D", "answer": "Manipular DOM" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "hard"
+  },
+  {
+    "categorySlug": "javascript",
+    "categoryName": "JavaScript",
+    "pomodoroSlug": "js-avancado",
+    "pomodoroName": "JS Avançado",
+    "pomodoroDuration": 25,
+    "question": "O que é event bubbling?",
+    "options": [
+      { "option": "A", "answer": "Propagação de eventos no DOM" },
+      { "option": "B", "answer": "Evento único" },
+      { "option": "C", "answer": "Erro de execução" },
+      { "option": "D", "answer": "Loop infinito" }
+    ],
+    "correctAnswer": "A",
+    "difficulty": "medium"
+  }
+]
