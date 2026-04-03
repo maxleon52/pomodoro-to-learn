@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react'
 import type { Category, Question } from '../../shared/types'
+import { toSlug } from '../../shared/slugify'
 import './categories-screen.css'
 
 const COLORS = [
@@ -29,9 +30,11 @@ export default function CategoriesScreen({ categories, questions, onAdd, onEdit,
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-  const [formName,  setFormName]  = useState('')
-  const [formColor, setFormColor] = useState(COLORS[0])
-  const [formEmoji, setFormEmoji] = useState(EMOJIS[0])
+  const [formName,     setFormName]     = useState('')
+  const [formSlug,     setFormSlug]     = useState('')
+  const [slugTouched,  setSlugTouched]  = useState(false)
+  const [formColor,    setFormColor]    = useState(COLORS[0])
+  const [formEmoji,    setFormEmoji]    = useState(EMOJIS[0])
 
   const filtered = categories.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase())
@@ -40,6 +43,8 @@ export default function CategoriesScreen({ categories, questions, onAdd, onEdit,
   function openNew() {
     setEditingId(null)
     setFormName('')
+    setFormSlug('')
+    setSlugTouched(false)
     setFormColor(COLORS[0])
     setFormEmoji(EMOJIS[0])
     setShowForm(true)
@@ -48,17 +53,23 @@ export default function CategoriesScreen({ categories, questions, onAdd, onEdit,
   function openEdit(cat: Category) {
     setEditingId(cat.id)
     setFormName(cat.name)
+    setFormSlug(cat.slug)
+    setSlugTouched(true)
     setFormColor(cat.color)
     setFormEmoji(cat.emoji)
     setShowForm(true)
   }
 
+  const slugExists = categories.some(
+    c => c.slug === formSlug && c.id !== editingId
+  )
+
   function handleSave() {
-    if (!formName.trim()) return
+    if (!formName.trim() || !formSlug.trim() || slugExists) return
     if (editingId) {
-      onEdit({ id: editingId, name: formName.trim(), color: formColor, emoji: formEmoji })
+      onEdit({ id: editingId, slug: formSlug, name: formName.trim(), color: formColor, emoji: formEmoji })
     } else {
-      onAdd({ name: formName.trim(), color: formColor, emoji: formEmoji })
+      onAdd({ slug: formSlug, name: formName.trim(), color: formColor, emoji: formEmoji })
     }
     setShowForm(false)
   }
@@ -89,9 +100,31 @@ export default function CategoriesScreen({ categories, questions, onAdd, onEdit,
                 className="cat-input"
                 placeholder="Nova categoria..."
                 value={formName}
-                onChange={e => setFormName(e.target.value)}
+                onChange={e => {
+                  setFormName(e.target.value)
+                  if (!slugTouched) setFormSlug(toSlug(e.target.value))
+                }}
               />
             </div>
+            <label className="cat-field-label" style={{ marginTop: 8 }}>
+              ID (slug)
+            </label>
+            <div className="cat-input-wrap">
+              <input
+                className="cat-input"
+                placeholder="id-da-categoria"
+                value={formSlug}
+                onChange={e => {
+                  setSlugTouched(true)
+                  setFormSlug(toSlug(e.target.value))
+                }}
+              />
+            </div>
+            {slugExists && (
+              <p style={{ color: '#EF4444', fontSize: 12, margin: '4px 0 0' }}>
+                Já existe uma categoria com este ID
+              </p>
+            )}
           </div>
 
           <div className="cat-card">
@@ -136,7 +169,7 @@ export default function CategoriesScreen({ categories, questions, onAdd, onEdit,
               className="cat-btn-add"
               style={{ background: formColor }}
               onClick={handleSave}
-              disabled={!formName.trim()}
+              disabled={!formName.trim() || !formSlug.trim() || slugExists}
             >
               {editingId ? 'Salvar' : 'Adicionar'}
             </button>

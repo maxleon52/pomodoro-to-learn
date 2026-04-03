@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Search, Plus, Pencil, Trash2, ArrowLeft } from 'lucide-react'
 import type { Category, Question, Pomodoro } from '../../shared/types'
+import { toSlug } from '../../shared/slugify'
 import './pomodoro-screen.css'
 
 interface PomodoroScreenProps {
@@ -18,11 +19,13 @@ export default function PomodoroScreen({ categories, questions, pomodoros, onAdd
   const [editingId, setEditingId] = useState<string | null>(null)
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
 
-  const [formName, setFormName] = useState('')
-  const [formCategoryId, setFormCategoryId] = useState(categories[0]?.id ?? '')
+  const [formName,        setFormName]        = useState('')
+  const [formSlug,        setFormSlug]        = useState('')
+  const [slugTouched,     setSlugTouched]     = useState(false)
+  const [formCategoryId,  setFormCategoryId]  = useState(categories[0]?.id ?? '')
   const [formQuestionIds, setFormQuestionIds] = useState<string[]>([])
-  const [formSearch, setFormSearch] = useState('')
-  const [formDuration, setFormDuration] = useState(25)
+  const [formSearch,      setFormSearch]      = useState('')
+  const [formDuration,    setFormDuration]    = useState(25)
 
   const filtered = pomodoros.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -36,6 +39,8 @@ export default function PomodoroScreen({ categories, questions, pomodoros, onAdd
   function openNew() {
     setEditingId(null)
     setFormName('')
+    setFormSlug('')
+    setSlugTouched(false)
     setFormCategoryId(categories[0]?.id ?? '')
     setFormQuestionIds([])
     setFormSearch('')
@@ -46,6 +51,8 @@ export default function PomodoroScreen({ categories, questions, pomodoros, onAdd
   function openEdit(p: Pomodoro) {
     setEditingId(p.id)
     setFormName(p.name)
+    setFormSlug(p.slug)
+    setSlugTouched(true)
     setFormCategoryId(p.categoryId)
     setFormQuestionIds([...p.questionIds])
     setFormSearch('')
@@ -53,12 +60,16 @@ export default function PomodoroScreen({ categories, questions, pomodoros, onAdd
     setShowForm(true)
   }
 
+  const slugExists = pomodoros.some(
+    x => x.slug === formSlug && x.id !== editingId
+  )
+
   function handleSave() {
-    if (!formName.trim()) return
+    if (!formName.trim() || !formSlug.trim() || slugExists || formQuestionIds.length === 0) return
     if (editingId) {
-      onEdit({ id: editingId, name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds, duration: formDuration })
+      onEdit({ id: editingId, slug: formSlug, name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds, duration: formDuration })
     } else {
-      onAdd({ name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds, duration: formDuration })
+      onAdd({ slug: formSlug, name: formName.trim(), categoryId: formCategoryId, questionIds: formQuestionIds, duration: formDuration })
     }
     setShowForm(false)
   }
@@ -120,9 +131,31 @@ export default function PomodoroScreen({ categories, questions, pomodoros, onAdd
                 className="pm-input"
                 placeholder="Ex: Estudar Inglês"
                 value={formName}
-                onChange={e => setFormName(e.target.value)}
+                onChange={e => {
+                  setFormName(e.target.value)
+                  if (!slugTouched) setFormSlug(toSlug(e.target.value))
+                }}
               />
             </div>
+            <label className="pm-field-label" style={{ marginTop: 8 }}>
+              ID (slug)
+            </label>
+            <div className="pm-input-wrap">
+              <input
+                className="pm-input"
+                placeholder="id-do-pomodoro"
+                value={formSlug}
+                onChange={e => {
+                  setSlugTouched(true)
+                  setFormSlug(toSlug(e.target.value))
+                }}
+              />
+            </div>
+            {slugExists && (
+              <p style={{ color: '#EF4444', fontSize: 12, margin: '4px 0 0' }}>
+                Já existe um pomodoro com este ID
+              </p>
+            )}
 
             {/* Categoria */}
             <label className="pm-field-label">Categoria</label>
@@ -205,7 +238,7 @@ export default function PomodoroScreen({ categories, questions, pomodoros, onAdd
             <button
               className="pm-btn-add"
               onClick={handleSave}
-              disabled={!formName.trim() || formQuestionIds.length === 0}
+              disabled={!formName.trim() || !formSlug.trim() || slugExists || formQuestionIds.length === 0}
             >
               {editingId ? 'Salvar' : 'Adicionar'}
             </button>

@@ -4,6 +4,7 @@ export type Phase = 'idle' | 'focusing' | 'quiz_pending'
 // Entidades da aplicação
 export interface Category {
   id: string
+  slug: string
   name: string
   color: string
   emoji: string
@@ -20,6 +21,7 @@ export interface Question {
 
 export interface Pomodoro {
   id: string
+  slug: string
   name: string
   categoryId: string
   questionIds: string[]

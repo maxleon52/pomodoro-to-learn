@@ -8,6 +8,7 @@ import PomodoroScreen from './components/pomodoro-screen'
 import BottomNav, { type Screen } from './components/bottom-nav'
 import ToastContainer, { type ToastData } from './components/toast'
 import type { TimerState, WorkerMessage, Category, Question, Pomodoro } from '../shared/types'
+import { toSlug } from '../shared/slugify'
 
 // Duração padrão de uma sessão: 25 minutos em segundos
 const DEFAULT_DURATION = 25 * 60
@@ -120,9 +121,13 @@ export default function App() {
           pomodoroIndex?: number
           answeredIds?: Record<string, string[]>
         }
-        if (Array.isArray(data.categories) && data.categories.length) setCategories(data.categories)
+        if (Array.isArray(data.categories) && data.categories.length) {
+          setCategories(data.categories.map(c => c.slug ? c : { ...c, slug: toSlug(c.name) }))
+        }
         if (Array.isArray(data.questions) && data.questions.length) setQuestions(data.questions)
-        if (Array.isArray(data.pomodoros) && data.pomodoros.length) setPomodoros(data.pomodoros)
+        if (Array.isArray(data.pomodoros) && data.pomodoros.length) {
+          setPomodoros(data.pomodoros.map(p => p.slug ? p : { ...p, slug: toSlug(p.name) }))
+        }
         if (typeof data.pomodoroIndex === 'number') setPomodoroIndex(data.pomodoroIndex)
         if (data.answeredIds && typeof data.answeredIds === 'object') setAnsweredIdsMap(data.answeredIds)
       }
@@ -280,11 +285,13 @@ export default function App() {
   // --- CRUD: Categorias ---
 
   function handleAddCategory(cat: Omit<Category, 'id'>) {
-    setCategories(prev => [...prev, { ...cat, id: Date.now().toString() }])
+    if (categories.some(c => c.slug === cat.slug)) return
+    setCategories(prev => [...prev, { ...cat, id: crypto.randomUUID() }])
     showToast('Categoria criada')
   }
 
   function handleEditCategory(cat: Category) {
+    if (categories.some(c => c.slug === cat.slug && c.id !== cat.id)) return
     setCategories(prev => prev.map(c => c.id === cat.id ? cat : c))
     showToast('Categoria atualizada')
   }
@@ -298,7 +305,7 @@ export default function App() {
   // --- CRUD: Perguntas ---
 
   function handleAddQuestion(q: Omit<Question, 'id'>) {
-    setQuestions(prev => [...prev, { ...q, id: Date.now().toString() }])
+    setQuestions(prev => [...prev, { ...q, id: crypto.randomUUID() }])
     showToast('Pergunta criada')
   }
 
@@ -316,11 +323,13 @@ export default function App() {
   // --- CRUD: Pomodoros ---
 
   function handleAddPomodoro(p: Omit<Pomodoro, 'id'>) {
-    setPomodoros(prev => [...prev, { ...p, id: Date.now().toString() }])
+    if (pomodoros.some(x => x.slug === p.slug)) return
+    setPomodoros(prev => [...prev, { ...p, id: crypto.randomUUID() }])
     showToast('Pomodoro criado')
   }
 
   function handleEditPomodoro(p: Pomodoro) {
+    if (pomodoros.some(x => x.slug === p.slug && x.id !== p.id)) return
     setPomodoros(prev => prev.map(x => x.id === p.id ? p : x))
     showToast('Pomodoro atualizado')
   }
