@@ -41,8 +41,11 @@ todos:
   - id: ux-polish
     content: "Campo difficulty nas perguntas (easy/medium/hard); empty states no timer (sem pomodoro, sem perguntas); botão Login desabilitado; toasts de feedback CRUD; indicador de posição entre pomodoros; regra de negócio: pomodoro requer ≥1 pergunta."
     status: done
+  - id: slug-uniqueness
+    content: "Slug único para Categorias e Pomodoros: campo slug (kebab-case) gerado automaticamente do nome mas editável; sincroniza nome→slug até o utilizador editar manualmente; validação de duplicata inline + botão desabilitado; IDs migrados de Date.now() para crypto.randomUUID(); migration automática de dados legacy ao carregar appData (gera slug do nome se ausente)."
+    status: done
   - id: import-questions
-    content: "Importação de perguntas via arquivo JSON (também aceita .txt com JSON válido). Botão Upload na tela de Perguntas. Formato: array de objetos com category, question, options (4 itens), correctAnswer (A/B/C/D), difficulty (opcional). Categorias inexistentes são criadas automaticamente. Limite de 2MB. Validação completa antes de importar. Plano detalhado salvo em C:/Users/maxwell/.claude/plans/cozy-marinating-hare.md."
+    content: "Tela dedicada de Importação (nova tela no menu). Importação de perguntas via JSON. Formato: array de objetos com categorySlug, pomodoroSlug (opcional), question, options (4 itens), correctAnswer (A/B/C/D), difficulty (opcional). Categorias e pomodoros referenciados por slug — se não existirem, são criados. Pré-visualização antes de confirmar: lista o que será criado (novas categorias, novos pomodoros, N perguntas) com opção de remover itens individualmente. Validação completa antes de importar. Limite de 2MB."
     status: pending
   - id: quiz-focused-mode
     content: "Modo Focado: sessão de quiz sem pomodoro, com filtro por dificuldade. Acessível a partir do menu."
@@ -185,7 +188,8 @@ Sessão de treino sem pomodoro: o utilizador acede diretamente ao quiz, podendo 
 14. ✅ **Bug fixes pós-Playwright**: arco coral sem clamp (girava loucamente), play ativo com pomodoro concluído, timer ignorava duração do pomodoro no arranque
 15. ✅ **Isolamento E2E**: RESET ao worker no fixture cancela alarmes pendentes entre testes
 16. ✅ **QA alarme com painel fechado** — testado e funcionando
-17. 🔲 **Importação de perguntas via JSON**: botão Upload na tela Perguntas, criação automática de categorias, limite 2MB
+17. ✅ **Slug único para Categorias e Pomodoros**: campo slug editável, validação de duplicata, crypto.randomUUID(), migration de dados legacy
+18. 🔲 **Tela de Importação**: nova tela no menu, JSON com slugs, pré-visualização do que será criado, confirmação antes de importar
 18. 🔲 **Publicar na Chrome Web Store**: ver secção abaixo ← próximo passo
 
 ## Checklist rápido de validação
