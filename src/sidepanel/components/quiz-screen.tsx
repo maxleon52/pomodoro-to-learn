@@ -4,7 +4,7 @@ import './quiz-screen.css'
 
 type Answer = 'A' | 'B' | 'C' | 'D'
 const LABELS: Answer[] = ['A', 'B', 'C', 'D']
-const QUESTION_TIME = 60 // segundos por pergunta
+export const QUESTION_TIME = 60 // segundos por pergunta
 
 export interface QuizQuestion {
   id: string
@@ -18,6 +18,9 @@ interface QuizScreenProps {
   category: string
   onAnswered: (questionId: string, correct: boolean) => void  // usuário respondeu
   onRoundEnd: () => void                                       // todas as perguntas expiraram → encerra rodada
+  initialIndex?: number        // índice inicial da pergunta (restaurado ao reabrir o painel)
+  initialTimeLeft?: number     // tempo restante inicial (restaurado ao reabrir o painel)
+  onAdvance?: (questionId: string | null) => void  // notifica o worker ao avançar de pergunta
 }
 
 interface QuizState {
@@ -27,20 +30,22 @@ interface QuizState {
   timeLeft: number
 }
 
-export default function QuizScreen({ questions, category, onAnswered, onRoundEnd }: QuizScreenProps) {
+export default function QuizScreen({ questions, category, onAnswered, onRoundEnd, initialIndex, initialTimeLeft, onAdvance }: QuizScreenProps) {
   const [quiz, setQuiz] = useState<QuizState>({
-    currentIndex: 0,
+    currentIndex: initialIndex ?? 0,
     selected: null,
     confirmed: false,
-    timeLeft: QUESTION_TIME,
+    timeLeft: initialTimeLeft ?? QUESTION_TIME,
   })
 
   // Refs para evitar stale closures nos efeitos do timer
   const onRoundEndRef = useRef(onRoundEnd)
   const onAnsweredRef = useRef(onAnswered)
+  const onAdvanceRef = useRef(onAdvance)
   const questionsLenRef = useRef(questions.length)
   useEffect(() => { onRoundEndRef.current = onRoundEnd }, [onRoundEnd])
   useEffect(() => { onAnsweredRef.current = onAnswered }, [onAnswered])
+  useEffect(() => { onAdvanceRef.current = onAdvance }, [onAdvance])
   useEffect(() => { questionsLenRef.current = questions.length }, [questions.length])
 
   // Countdown — reinicia quando muda de pergunta ou quando é confirmada
@@ -60,6 +65,7 @@ export default function QuizScreen({ questions, category, onAnswered, onRoundEnd
     if (quiz.timeLeft > 0 || quiz.confirmed) return
     const next = quiz.currentIndex + 1
     if (next < questionsLenRef.current) {
+      onAdvanceRef.current?.(questions[next]?.id ?? null)
       setQuiz({ currentIndex: next, selected: null, confirmed: false, timeLeft: QUESTION_TIME })
     } else {
       onRoundEndRef.current()
@@ -91,6 +97,7 @@ export default function QuizScreen({ questions, category, onAnswered, onRoundEnd
       // Avança para a próxima pergunta da rodada ou encerra se for a última
       const next = quiz.currentIndex + 1
       if (next < questionsLenRef.current) {
+        onAdvanceRef.current?.(questions[next]?.id ?? null)
         setQuiz({ currentIndex: next, selected: null, confirmed: false, timeLeft: QUESTION_TIME })
       } else {
         onRoundEndRef.current()

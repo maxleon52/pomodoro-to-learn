@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import './styles/global.css'
 import TimerScreen from './components/timer-screen'
-import QuizScreen from './components/quiz-screen'
+import QuizScreen, { QUESTION_TIME } from './components/quiz-screen'
 import CategoriesScreen from './components/categories-screen'
 import QuestionsScreen from './components/questions-screen'
 import PomodoroScreen from './components/pomodoro-screen'
@@ -278,6 +278,11 @@ export default function App() {
     setTimeLeft(sessionDuration)
   }
 
+  async function handleQuizAdvance(questionId: string | null) {
+    const state = await sendToWorker({ type: 'QUIZ_ADVANCE', questionId })
+    setWorkerState(state)
+  }
+
   function handleRestartPomodoro() {
     if (!activePomodoro) return
     const pomId = activePomodoro.id
@@ -421,6 +426,14 @@ export default function App() {
   function renderScreen() {
     // Quiz sobrepõe qualquer tela quando há perguntas pendentes na rodada
     if (workerState.phase === 'quiz_pending' && !isCompleted && roundQuestions.length > 0) {
+      // Restaura o índice e o tempo restante da pergunta ao reabrir o painel
+      const persistedId = workerState.quizCurrentQuestionId
+      const initialIndex = persistedId
+        ? Math.max(0, roundQuestions.findIndex(q => q.id === persistedId))
+        : 0
+      const initialTimeLeft = workerState.quizQuestionStartedAt
+        ? Math.max(0, QUESTION_TIME - Math.round((Date.now() - workerState.quizQuestionStartedAt) / 1000))
+        : QUESTION_TIME
       return (
         <QuizScreen
           key={roundKey}
@@ -428,6 +441,9 @@ export default function App() {
           category={activeCategory.name}
           onAnswered={handleAnswered}
           onRoundEnd={handleRoundEnd}
+          initialIndex={initialIndex}
+          initialTimeLeft={initialTimeLeft}
+          onAdvance={handleQuizAdvance}
         />
       )
     }

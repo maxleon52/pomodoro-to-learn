@@ -36,6 +36,11 @@ export interface TimerState {
   // Segundos restantes — autoritativo quando pausado; calculado a partir de endTime quando running
   timeLeft: number
   running: boolean
+  // Estado do quiz — persiste para sobreviver ao fecho/abertura do painel
+  // ID da pergunta actualmente a ser respondida; null = começa do índice 0
+  quizCurrentQuestionId: string | null
+  // Timestamp (ms) de quando o timer da pergunta actual começou
+  quizQuestionStartedAt: number | null
 }
 
 // Mensagens que o side panel envia ao service worker
@@ -46,3 +51,4 @@ export type WorkerMessage =
   | { type: 'RESUME' }
   | { type: 'RESET' }   // volta ao estado idle
   | { type: 'SKIP' }    // força o fim da sessão (activa quiz_pending)
+  | { type: 'QUIZ_ADVANCE'; questionId: string | null }  // avança para a próxima pergunta do quiz

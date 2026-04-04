@@ -12,6 +12,8 @@ const DEFAULT_STATE: TimerState = {
   endTime: null,
   timeLeft: 0,
   running: false,
+  quizCurrentQuestionId: null,
+  quizQuestionStartedAt: null,
 }
 
 // ── Helpers de storage ────────────────────────────────────────────────────────
@@ -39,6 +41,8 @@ async function handleAlarmEnd(): Promise<void> {
     running: false,
     endTime: null,
     timeLeft: 0,
+    quizCurrentQuestionId: null,
+    quizQuestionStartedAt: Date.now(),
   })
 
   // Garante que a notificação anterior foi limpa antes de criar uma nova.
@@ -80,6 +84,8 @@ async function handleMessage(msg: WorkerMessage): Promise<TimerState> {
         endTime,
         timeLeft: msg.duration,
         running: true,
+        quizCurrentQuestionId: null,
+        quizQuestionStartedAt: null,
       }
       await setState(next)
       return next
@@ -117,6 +123,17 @@ async function handleMessage(msg: WorkerMessage): Promise<TimerState> {
       await chrome.alarms.clear(ALARM_NAME)
       await handleAlarmEnd()
       return getState()
+    }
+
+    case 'QUIZ_ADVANCE': {
+      // Avança para a próxima pergunta do quiz e reinicia o timestamp do timer
+      const next: TimerState = {
+        ...state,
+        quizCurrentQuestionId: msg.questionId,
+        quizQuestionStartedAt: Date.now(),
+      }
+      await setState(next)
+      return next
     }
   }
 }
