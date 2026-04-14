@@ -7,6 +7,7 @@ function copyExtensionAssets() {
   return {
     name: 'copy-extension-assets',
     closeBundle() {
+      mkdirSync('dist', { recursive: true })
       // manifest
       copyFileSync('manifest.json', 'dist/manifest.json')
 
@@ -35,8 +36,8 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        sidepanel: resolve(import.meta.dirname, 'src/sidepanel/index.html'),
-        background: resolve(import.meta.dirname, 'src/background/index.ts'),
+        sidepanel: resolve('src/sidepanel/index.html'),
+        background: resolve('src/background/index.ts'),
       },
       output: {
         entryFileNames: (chunk) => {
