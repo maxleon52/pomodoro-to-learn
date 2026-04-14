@@ -2,6 +2,14 @@
 
 Extensão de browser: sessão de foco com temporizador e revisão rápida (flashcard / múltipla escolha) após cada sessão.
 
+## Instalação
+
+1. [Baixe a extensão](https://github.com/maxleon52/pomodoro-to-learn/releases/latest/download/learn-in-pomodoro.zip)
+2. Extraia o `.zip`
+3. Abra `chrome://extensions`
+4. Ative o **Modo desenvolvedor** (canto superior direito)
+5. Clique em **Carregar sem empacotar** e selecione a pasta extraída
+
 ## Funcionalidades
 
 - **Timer Pomodoro** — sessões configuráveis com contagem regressiva no service worker; notificação ao fim.
