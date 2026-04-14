@@ -1,5 +1,7 @@
 # Learn in Pomodoro
 
+[![GitHub release](https://img.shields.io/github/v/release/maxleon52/pomodoro-to-learn?label=download&logo=github)](https://github.com/maxleon52/pomodoro-to-learn/releases/latest)
+
 Extensão de browser: sessão de foco com temporizador e revisão rápida (flashcard / múltipla escolha) após cada sessão.
 
 ## Instalação
